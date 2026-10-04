@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYBER-ARENA BENCHMARK // SNAKE & TETRIS</title>
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Cyber Header -->
+  <header class="cyber-header">
+    <div class="logo-area">
+      <div class="logo-icon" id="arenaIcon">🐍</div>
+      <div class="logo-title">
+        <h1 id="arenaTitle">AI Multi-Model Arena // Research Lab</h1>
+        <div class="logo-subtitle">JEV 1.13 SYSTEM-ONE vs LAYA vs OLLAMA LOCAL MODELS</div>
+      </div>
+    </div>
+
+    <!-- Arena Game Switcher Tabs -->
+    <div class="arena-tabs">
+      <button class="arena-tab active" id="tabSnake" data-game="snake">
+        <span>🐍</span> CYBER-SNAKE
+      </button>
+      <button class="arena-tab" id="tabTetris" data-game="tetris">
+        <span>🧱</span> CYBER-TETRIS
+      </button>
+    </div>
+
+    <div class="header-status">
+      <div class="status-badge" id="statusBadge">
+        <span class="status-dot"></span>
+        <span id="statusText">CONNECTING...</span>
+      </div>
+      <div class="turn-pill">TURN: <span id="displayTurn">0</span></div>
+      <div class="seed-pill">SEED: <span id="displaySeed">42</span></div>
+      <button class="cyber-btn active" id="btnMute">🔊 SOUND ON</button>
+    </div>
+  </header>
+
+  <!-- Interactive Control Bar -->
+  <section class="control-bar">
+    <div class="playback-controls">
+      <button class="cyber-btn btn-play" id="btnPlay">
+        <span class="icon">▶</span> RUN ARENA
+      </button>
+      <button class="cyber-btn" id="btnStep">
+        <span class="icon">⏭</span> STEP
+      </button>
+      <button class="cyber-btn" id="btnReset">
+        <span class="icon">↺</span> RESET
+      </button>
+    </div>
+
+    <div class="config-group">
+      <!-- Snake-only options -->
+      <div class="config-item snake-opt">
+        <label for="gridSizeSelect">GRID:</label>
+        <select class="cyber-select" id="gridSizeSelect">
+          <option value="6">6x6 Micro</option>
+          <option value="8" selected>8x8 Small (Default)</option>
+          <option value="10">10x10 Medium</option>
+          <option value="12">12x12 Large</option>
+          <option value="16">16x16 Arena</option>
+        </select>
+      </div>
+
+      <div class="config-item snake-opt">
+        <label for="mazeSelect">MAZE:</label>
+        <select class="cyber-select" id="mazeSelect">
+          <option value="open" selected>Open Arena</option>
+          <option value="cross">Central Cross</option>
+          <option value="four_rooms">Four Rooms</option>
+          <option value="corridors">Labyrinth Corridors</option>
+          <option value="random_obstacles">Random Obstacles (10%)</option>
+        </select>
+      </div>
+
+      <!-- Seed & Speed -->
+      <div class="config-item">
+        <label for="seedInput">SEED:</label>
+        <input type="number" class="cyber-input" id="seedInput" value="42" style="width: 75px;">
+        <button class="cyber-btn" id="btnRandomSeed" title="Generate New Seed">🎲</button>
+      </div>
+
+      <div class="speed-slider-wrap">
+        <label for="speedSlider">SPEED:</label>
+        <input type="range" id="speedSlider" min="50" max="1000" step="50" value="300">
+        <span id="speedVal" style="color: var(--cyan-glow); min-width: 45px;">300ms</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Dashboard Content -->
+  <main class="main-content">
+
+    <!-- Top Leaderboard Panel -->
+    <section class="leaderboard-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>🏆 Real-Time Model Telemetry & Leaderboard</span>
+          <span class="badge" id="arenaBadge">IDENTICAL SEED COMPARISON</span>
+        </div>
+        <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">
+          Click any model to inspect live decision vectors
+        </div>
+      </div>
+      <div class="leaderboard-table-wrap">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Model Architecture</th>
+              <th>Status</th>
+              <th id="thPrimaryMetric">Score (Apples)</th>
+              <th id="thSecondaryMetric">Steps Survived</th>
+              <th>Avg Latency</th>
+              <th>P99 Latency</th>
+              <th>Token Cost ($)</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody">
+            <!-- Populated via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Synchronized Multi-Screen Grid of Viewport Canvases -->
+    <section class="arena-grid-section">
+      <div class="panel-header" style="margin-bottom: 0;">
+        <div class="panel-title">
+          <span id="viewportsTitle">🎮 Live Concurrent Viewports</span>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3);">60 FPS SMOOTH ENGINE</span>
+        </div>
+      </div>
+      <div class="viewports-grid" id="viewportsGrid">
+        <!-- Canvas cards dynamically injected by app.js -->
+      </div>
+    </section>
+
+    <!-- Scientific Telemetry Charts -->
+    <section class="inspector-grid" style="grid-template-columns: 1fr 1fr;">
+      <div class="inspector-box">
+        <div class="box-title" style="display:flex; justify-content:space-between;">
+          <span>⚡ Step Latency Real-Time Stream (ms)</span>
+          <span style="color:var(--cyan-glow)">JEV sub-100ms vs LLM</span>
+        </div>
+        <canvas id="latencyCanvas" width="450" height="150" style="width:100%; height:150px; display:block; border-radius:6px;"></canvas>
+      </div>
+
+      <div class="inspector-box">
+        <div class="box-title">
+          <span id="chartMetricTitle">🍎 Cumulative Score Comparison</span>
+        </div>
+        <canvas id="scoreCanvas" width="450" height="150" style="width:100%; height:150px; display:block; border-radius:6px;"></canvas>
+      </div>
+    </section>
+
+    <!-- Hacker Terminal & Live Logs -->
+    <section class="terminal-section">
+      <div class="terminal-header">
+        <div class="terminal-title">
+          <span style="color: #34d399;">●</span>
+          <span>RESEARCH PROTOCOL_STREAM // TELEMETRY STDOUT</span>
+        </div>
+
+        <div class="terminal-controls">
+          <div class="filter-pills">
+            <button class="pill-btn active" data-filter="ALL">ALL</button>
+            <button class="pill-btn" data-filter="jev">JEV</button>
+            <button class="pill-btn" data-filter="laya">LAYA</button>
+            <button class="pill-btn" data-filter="qwen">QWEN</button>
+            <button class="pill-btn" data-filter="llama">LLAMA</button>
+            <button class="pill-btn" data-filter="algo">ALGO</button>
+          </div>
+
+          <input type="text" class="terminal-search" id="termSearch" placeholder="Search logs...">
+
+          <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+            <input type="checkbox" id="chkAutoScroll" checked> Auto
+          </label>
+
+          <button class="cyber-btn" id="btnExportJson" style="padding: 2px 8px; font-size: 0.7rem;">EXPORT JSON</button>
+          <button class="cyber-btn" id="btnExportCsv" style="padding: 2px 8px; font-size: 0.7rem;">EXPORT CSV</button>
+        </div>
+      </div>
+
+      <div class="terminal-body" id="terminalBody">
+        <!-- Log lines dynamically appended here -->
+      </div>
+
+      <!-- Hacker CLI Input Box -->
+      <div style="background:#090f1a; border-top:1px solid rgba(255,255,255,0.06); padding:6px 12px; display:flex; align-items:center; gap:8px;">
+        <span style="color:var(--cyan-glow); font-family:var(--font-mono); font-size:0.8rem; font-weight:bold;">cyber@arena:~$</span>
+        <input type="text" id="cliInput" placeholder="type 'help', 'play', 'pause', 'game tetris', 'game snake', 'clear'..." style="background:transparent; border:none; color:#f8fafc; font-family:var(--font-mono); font-size:0.8rem; outline:none; flex:1;">
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Model Brain Spotlight & Decision Inspector Modal -->
+  <div class="modal-overlay" id="inspectorModal">
+    <div class="inspector-modal">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span style="font-size: 1.3rem;">🧠</span>
+          <span id="inspectorModelTitle">Model Inspector</span>
+          <span class="card-model-type" id="inspectorModelType">SYSTEM-1</span>
+        </div>
+        <button class="btn-close" aria-label="Close Inspector">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="inspector-grid">
+          <!-- Confidence Radar & Direction Bars -->
+          <div class="inspector-box">
+            <div class="box-title">Decision Direction / Placement Probabilities</div>
+            <div id="inspectorProbBars"></div>
+          </div>
+
+          <!-- Safe Moves & Evaluated Criteria -->
+          <div class="inspector-box">
+            <div class="box-title">Spatial Criteria & Hazard Evaluation</div>
+            <div id="inspectorCriteria"></div>
+          </div>
+        </div>
+
+        <!-- Raw ASCII Board State Seen by Model -->
+        <div class="inspector-box">
+          <div class="box-title">ASCII Spatial Map (Verbatim Board State)</div>
+          <div class="ascii-box" id="inspectorAsciiGrid"></div>
+        </div>
+
+        <!-- Raw JSON Response -->
+        <div class="inspector-box">
+          <div class="box-title">Raw Decision Response & Telemetry</div>
+          <div class="raw-json-box" id="inspectorRawJson"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/js/audio.js"></script>
+  <script src="/js/renderer.js"></script>
+  <script src="/js/tetris_renderer.js"></script>
+  <script src="/js/charts.js"></script>
+  <script src="/js/terminal.js"></script>
+  <script src="/js/inspector.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
