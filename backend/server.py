@@ -218,9 +218,23 @@ class ArenaCoordinator:
         if not game or not agent or not game.is_alive:
             return None
 
+        # Capture pre-drop state for real-time falling animation
+        pre_grid = [row[:] for row in game.grid]
+        falling_piece = game.current_piece
+
         state_repr = build_tetris_state(game)
         decision = await agent.decide_placement(state_repr)
+        drop_y = getattr(decision, "drop_y", 18)
         new_state = game.place_piece(decision.rotation, decision.column)
+
+        commands = [
+            f"SPAWN {falling_piece}",
+            f"ROTATE {decision.rotation * 90}°",
+            f"SHIFT COL {decision.column}",
+            f"DROP Y:{drop_y}",
+        ]
+        if decision.lines_cleared > 0:
+            commands.append(f"CLEAR {decision.lines_cleared} LINES")
 
         event = {
             "turn": self.turn,
@@ -238,7 +252,13 @@ class ArenaCoordinator:
                 "is_safe": game.is_alive,
                 "reasoning": decision.reasoning,
                 "cost_usd": decision.cost_usd,
+                "piece": falling_piece,
+                "rotation": decision.rotation,
+                "column": decision.column,
+                "drop_y": drop_y,
+                "commands": commands,
             },
+            "pre_grid": pre_grid,
             "game_state": new_state,
             "telemetry": agent.get_summary_stats(),
             "state_repr": {
@@ -403,10 +423,17 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 # Mount frontend static files
-app.mount("/css", StaticFiles(directory=os.path.join(FRONTEND_DIR, "css")), name="css")
-app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND_DIR, "js")), name="js")
+DIST_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend_dist")
+FRONTEND_DIR = DIST_DIR if os.path.exists(DIST_DIR) else os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+
 if os.path.exists(os.path.join(FRONTEND_DIR, "assets")):
     app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
+
+if os.path.exists(os.path.join(FRONTEND_DIR, "css")):
+    app.mount("/css", StaticFiles(directory=os.path.join(FRONTEND_DIR, "css")), name="css")
+
+if os.path.exists(os.path.join(FRONTEND_DIR, "js")):
+    app.mount("/js", StaticFiles(directory=os.path.join(FRONTEND_DIR, "js")), name="js")
 
 
 @app.get("/")

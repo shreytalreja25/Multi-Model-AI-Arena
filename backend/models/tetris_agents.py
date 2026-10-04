@@ -17,6 +17,7 @@ class TetrisDecisionResult(BaseModel):
     candidate_key: str
     confidence: float
     latency_ms: float
+    drop_y: int = 18
     input_tokens: int = 0
     output_tokens: int = 0
     cost_usd: float = 0.0
@@ -95,7 +96,7 @@ class JevTetrisAgent(BaseTetrisAgent):
         candidates = state.get("candidates", {})
         criteria = state.get("criteria", {})
         if not candidates:
-            return TetrisDecisionResult(rotation=0, column=0, candidate_key="POS_0", confidence=0.0, latency_ms=1.0)
+            return TetrisDecisionResult(rotation=0, column=0, drop_y=18, candidate_key="POS_0", confidence=0.0, latency_ms=1.0)
 
         keys = list(candidates.keys())
 
@@ -125,6 +126,7 @@ class JevTetrisAgent(BaseTetrisAgent):
                 res = TetrisDecisionResult(
                     rotation=p["rotation"],
                     column=p["column"],
+                    drop_y=p.get("drop_y", 18),
                     candidate_key=chosen_key,
                     confidence=round(conf, 3),
                     latency_ms=round(elapsed_ms, 1),
@@ -141,7 +143,6 @@ class JevTetrisAgent(BaseTetrisAgent):
 
         # Simulated Jev Decision (high-accuracy pick of top candidate in ~78ms)
         elapsed_ms = 72.0 + (hash(str(state["pieces_placed"])) % 20)
-        # Jev strongly favors line clears & zero holes
         best_k = keys[0]
         conf = 0.90
         p = candidates[best_k]
@@ -149,6 +150,7 @@ class JevTetrisAgent(BaseTetrisAgent):
         res = TetrisDecisionResult(
             rotation=p["rotation"],
             column=p["column"],
+            drop_y=p.get("drop_y", 18),
             candidate_key=best_k,
             confidence=conf,
             latency_ms=round(elapsed_ms, 1),
@@ -170,7 +172,7 @@ class DellacherieTetrisAgent(BaseTetrisAgent):
         t0 = time.perf_counter()
         all_legal = state.get("all_legal", [])
         if not all_legal:
-            return TetrisDecisionResult(rotation=0, column=0, candidate_key="NONE", confidence=0.0, latency_ms=0.5)
+            return TetrisDecisionResult(rotation=0, column=0, drop_y=18, candidate_key="NONE", confidence=0.0, latency_ms=0.5)
 
         # Global optimal selection among all legal placements
         best_p = max(all_legal, key=score_placement_dellacherie)
@@ -179,6 +181,7 @@ class DellacherieTetrisAgent(BaseTetrisAgent):
         res = TetrisDecisionResult(
             rotation=best_p["rotation"],
             column=best_p["column"],
+            drop_y=best_p.get("drop_y", 18),
             candidate_key="OPTIMAL",
             confidence=0.99,
             latency_ms=round(max(0.4, elapsed_ms), 2),
@@ -199,7 +202,7 @@ class OllamaTetrisAgent(BaseTetrisAgent):
         t0 = time.perf_counter()
         candidates = state.get("candidates", {})
         if not candidates:
-            return TetrisDecisionResult(rotation=0, column=0, candidate_key="POS_0", confidence=0.0, latency_ms=1.0)
+            return TetrisDecisionResult(rotation=0, column=0, drop_y=18, candidate_key="POS_0", confidence=0.0, latency_ms=1.0)
         keys = list(candidates.keys())
 
         # Try live Ollama
@@ -230,6 +233,7 @@ class OllamaTetrisAgent(BaseTetrisAgent):
                     out = TetrisDecisionResult(
                         rotation=p["rotation"],
                         column=p["column"],
+                        drop_y=p.get("drop_y", 18),
                         candidate_key=chosen_k,
                         confidence=float(parsed.get("confidence", 0.8)),
                         latency_ms=round(elapsed_ms, 1),
@@ -252,6 +256,7 @@ class OllamaTetrisAgent(BaseTetrisAgent):
         out = TetrisDecisionResult(
             rotation=p["rotation"],
             column=p["column"],
+            drop_y=p.get("drop_y", 18),
             candidate_key=chosen_k,
             confidence=0.82,
             latency_ms=round(elapsed_ms, 1),
@@ -273,7 +278,7 @@ class LayaTetrisAgent(BaseTetrisAgent):
         t0 = time.perf_counter()
         candidates = state.get("candidates", {})
         if not candidates:
-            return TetrisDecisionResult(rotation=0, column=0, candidate_key="POS_0", confidence=0.0, latency_ms=1.0)
+            return TetrisDecisionResult(rotation=0, column=0, drop_y=18, candidate_key="POS_0", confidence=0.0, latency_ms=1.0)
         keys = list(candidates.keys())
 
         # Sub-60ms encoder choice
@@ -284,6 +289,7 @@ class LayaTetrisAgent(BaseTetrisAgent):
         out = TetrisDecisionResult(
             rotation=p["rotation"],
             column=p["column"],
+            drop_y=p.get("drop_y", 18),
             candidate_key=chosen_k,
             confidence=0.79,
             latency_ms=round(elapsed_ms, 1),
