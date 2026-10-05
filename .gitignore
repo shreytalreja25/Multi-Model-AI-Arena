@@ -14,3 +14,6 @@ experiments/*_steps.csv
 
 # Graphify knowledge graph
 graphify-out/
+
+# Intermediate PDF build files
+ieee_paper_build.html
