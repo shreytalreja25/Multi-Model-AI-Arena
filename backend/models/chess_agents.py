@@ -277,8 +277,8 @@ class GeminiChessAgent(BaseChessAgent):
             m = legal[0]
             return ChessDecisionResult(uci=m.uci(), san=board.san(m), from_square=chess.square_name(m.from_square), to_square=chess.square_name(m.to_square), confidence=0.5, latency_ms=1.0)
 
-        # Check circuit breaker
-        if not self.tracker.is_circuit_broken and self.api_key:
+        # Check circuit breaker (unless FAST_BENCHMARK active)
+        if not self.tracker.is_circuit_broken and self.api_key and os.getenv("FAST_BENCHMARK", "0") != "1":
             prompt = (
                 f"You are a Grandmaster Chess AI playing as {state['turn'].upper()}.\n"
                 f"Move number: {state['fullmove_number']}, Check: {state['is_check']}\n"
@@ -417,47 +417,48 @@ class OllamaChessAgent(BaseChessAgent):
             m = legal[0]
             return ChessDecisionResult(uci=m.uci(), san=board.san(m), from_square=chess.square_name(m.from_square), to_square=chess.square_name(m.to_square), confidence=0.5, latency_ms=1.0)
 
-        # Try live Ollama
-        try:
-            async with httpx.AsyncClient(timeout=4.0) as client:
-                prompt = (
-                    f"Chess Match Turn {state['fullmove_number']} ({state['turn'].upper()}):\n"
-                    f"Candidate Moves:\n" + "\n".join(f"- {k}: {v}" for k, v in state.get("criteria", {}).items()) +
-                    f"\nSelect the best move key ({keys[0]}). Return JSON: {{\"move\": \"{keys[0]}\", \"confidence\": 0.85}}"
-                )
-                res = await client.post(
-                    f"{self.base_url}/api/chat",
-                    json={
-                        "model": self.model_id,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "format": "json",
-                        "options": {"temperature": 0.0, "num_predict": 50}
-                    }
-                )
-                if res.status_code == 200:
-                    elapsed_ms = (time.perf_counter() - t0) * 1000.0
-                    body = res.json()
-                    parsed = json.loads(body.get("message", {}).get("content", "{}"))
-                    chosen_uci = parsed.get("move", keys[0])
-                    if chosen_uci not in candidates:
-                        chosen_uci = keys[0]
-                    c_data = candidates[chosen_uci]
-                    out = ChessDecisionResult(
-                        uci=chosen_uci,
-                        san=c_data["san"],
-                        from_square=c_data["from_square"],
-                        to_square=c_data["to_square"],
-                        confidence=float(parsed.get("confidence", 0.82)),
-                        latency_ms=round(elapsed_ms, 1),
-                        input_tokens=body.get("prompt_eval_count", 160),
-                        output_tokens=body.get("eval_count", 25),
-                        reasoning=f"{self.name} selected {c_data['san']}",
-                        eval_score=c_data["score"] / 100.0,
+        # Try live Ollama (unless FAST_BENCHMARK active)
+        if os.getenv("FAST_BENCHMARK", "0") != "1":
+            try:
+                async with httpx.AsyncClient(timeout=4.0) as client:
+                    prompt = (
+                        f"Chess Match Turn {state['fullmove_number']} ({state['turn'].upper()}):\n"
+                        f"Candidate Moves:\n" + "\n".join(f"- {k}: {v}" for k, v in state.get("criteria", {}).items()) +
+                        f"\nSelect the best move key ({keys[0]}). Return JSON: {{\"move\": \"{keys[0]}\", \"confidence\": 0.85}}"
                     )
-                    self.record_decision(out)
-                    return out
-        except Exception:
-            pass
+                    res = await client.post(
+                        f"{self.base_url}/api/chat",
+                        json={
+                            "model": self.model_id,
+                            "messages": [{"role": "user", "content": prompt}],
+                            "format": "json",
+                            "options": {"temperature": 0.0, "num_predict": 50}
+                        }
+                    )
+                    if res.status_code == 200:
+                        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+                        body = res.json()
+                        parsed = json.loads(body.get("message", {}).get("content", "{}"))
+                        chosen_uci = parsed.get("move", keys[0])
+                        if chosen_uci not in candidates:
+                            chosen_uci = keys[0]
+                        c_data = candidates[chosen_uci]
+                        out = ChessDecisionResult(
+                            uci=chosen_uci,
+                            san=c_data["san"],
+                            from_square=c_data["from_square"],
+                            to_square=c_data["to_square"],
+                            confidence=float(parsed.get("confidence", 0.82)),
+                            latency_ms=round(elapsed_ms, 1),
+                            input_tokens=body.get("prompt_eval_count", 160),
+                            output_tokens=body.get("eval_count", 25),
+                            reasoning=f"{self.name} selected {c_data['san']}",
+                            eval_score=c_data["score"] / 100.0,
+                        )
+                        self.record_decision(out)
+                        return out
+            except Exception:
+                pass
 
         # Simulated fallback
         is_1b = "1b" in self.model_id.lower()

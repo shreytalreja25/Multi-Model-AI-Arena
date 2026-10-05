@@ -1,6 +1,6 @@
 # 🎮 Multi-Model AI Arena: Snake, Tetris & Chess Benchmark Suite
 
-[![Repository](https://img.shields.io/badge/GitHub-shreytalreja25%2Fsnake--game--benchmark-blue)](https://github.com/shreytalreja25/snake-game-benchmark.git)
+[![Repository](https://img.shields.io/badge/GitHub-shreytalreja25%2FMulti--Model--AI--Arena-blue)](https://github.com/shreytalreja25/Multi-Model-AI-Arena.git)
 [![Backend](https://img.shields.io/badge/FastAPI-0.115+-009688)](https://fastapi.tiangolo.com)
 [![Frontend](https://img.shields.io/badge/React_19-Vite_8-61dafb)](https://react.dev)
 [![WebSockets](https://img.shields.io/badge/WebSockets-Realtime_60FPS-green)](https://websockets.readthedocs.io)
@@ -55,8 +55,8 @@ The arena integrates **Google Gemini Flash** (`gemini-flash-latest` via Google A
 
 ### Installation
 ```bash
-git clone https://github.com/shreytalreja25/snake-game-benchmark.git
-cd snake-game-benchmark
+git clone https://github.com/shreytalreja25/Multi-Model-AI-Arena.git
+cd Multi-Model-AI-Arena
 
 # Setup virtual environment & install requirements
 pip install -r requirements.txt
@@ -90,3 +90,54 @@ Open your browser at `http://localhost:8000`.
 | **Llama 3.1 8B** | Dense Generative LLM | Ollama Local | **~3,100 ms** | $0.00 (Local) |
 | **Llama 3.2 1B** | Edge Generative LLM | Ollama Local | **~850 ms** | $0.00 (Local) |
 | **Algorithmic Baseline** | A* / Dellacherie / Minimax | Pure Heuristic Search | **< 1 ms** | $0.00 |
+
+---
+
+## 📄 Academic Research Paper & Benchmark Findings
+
+A complete, formal research paper detailing the empirical methodology, theoretical framing, tokenomics analysis, and benchmark datasets is included in this repository:
+
+👉 **[Read the Full Research Paper (RESEARCH_PAPER.md)](RESEARCH_PAPER.md)**
+
+### Key Highlights
+- **Pareto Optimal Frontier:** System-One primitives (TypeSafe Jev 1.13) match or exceed 8B/9B LLM performance with an **84–86ms P50 latency** (a **$28\times–30\times$ speedup** over Ollama local LLMs) at **$0.006 per 1,000 decisions**.
+- **Bidirectional Encoders (Laya 421M):** Ultra-fast at **~60ms**, but vulnerable to greedy trapping in non-reversible topological spaces (Cyber-Snake) without explicit lookahead.
+- **Safety Circuit Breaker:** Successfully intercepts HTTP 429 quota exhaustion and budget limits, preserving 100% arena uptime via seamless heuristic fallback.
+
+<p align="center">
+  <img src="experiments/charts/fig1_pareto_frontier.png" width="85%" alt="Pareto Frontier: Latency vs Performance" />
+  <br/>
+  <em>Figure: Latency–Accuracy Pareto Frontier across Cyber-Snake, Cyber-Tetris, and Cyber-Chess.</em>
+</p>
+
+---
+
+## 🖥️ Headless Runner & Rich TUI
+
+To bypass GPU inference lag and conduct automated batch experiments for numerical analysis, the repository provides both a CLI headless runner and an interactive Rich Terminal User Interface (TUI):
+
+### 1. Interactive Terminal User Interface (TUI)
+```bash
+python -m backend.tui
+```
+- **Batch Experiment Runner:** Execute 10–100 seed automated runs across Snake, Tetris, and Chess headlessly.
+- **Sped-Up Simulation Replay:** Replay recorded JSON game traces at 5x, 10x, or 20x speed with zero GPU inference lag.
+- **Live Circuit Breaker Telemetry:** Inspect token usage, rate limits, and reset Google Gemini Flash breaker.
+- **Paper Summary Table:** View Mean $\pm$ Std scores, P50 latency, and token cost directly in your terminal.
+
+### 2. Batch Script Execution
+```bash
+# Run 10-episode paper benchmarks across all 3 domains
+python backend/experiments/run_paper_experiments.py
+```
+Outputs are automatically saved to `experiments/` as `*_summary.csv`, `*_steps.csv`, and JSON trace logs.
+
+---
+
+## 📸 Arena Visual Gallery
+
+| Cyber-Snake Arena | Cyber-Tetris Arena |
+| :---: | :---: |
+| ![Snake Arena](experiments/screenshots/snake_arena.png) | ![Tetris Arena](experiments/screenshots/tetris_arena.png) |
+| **Cyber-Chess Arena** | **Model Telemetry Inspector** |
+| ![Chess Arena](experiments/screenshots/chess_arena.png) | ![Model Inspector](experiments/screenshots/model_inspector.png) |

@@ -92,8 +92,8 @@ class GeminiSnakeAgent(BaseSnakeAgent):
         safe_moves = state.get("safe_moves", [])
         criteria = state.get("criteria", {})
 
-        # Check circuit breaker
-        if not self.tracker.is_circuit_broken and self.api_key:
+        # Check circuit breaker (unless FAST_BENCHMARK active)
+        if not self.tracker.is_circuit_broken and self.api_key and os.getenv("FAST_BENCHMARK", "0") != "1":
             prompt = (
                 "You are an expert Snake AI playing on a grid.\n"
                 f"Grid: {state['grid_size']}x{state['grid_size']}\n"
@@ -230,7 +230,7 @@ class GeminiTetrisAgent(BaseTetrisAgent):
             return TetrisDecisionResult(rotation=0, column=0, drop_y=18, candidate_key="POS_0", confidence=0.0, latency_ms=1.0)
         keys = list(candidates.keys())
 
-        if not self.tracker.is_circuit_broken and self.api_key:
+        if not self.tracker.is_circuit_broken and self.api_key and os.getenv("FAST_BENCHMARK", "0") != "1":
             prompt = (
                 f"You are a master Tetris AI.\n"
                 f"Current Piece: {state['current_piece']}\n"

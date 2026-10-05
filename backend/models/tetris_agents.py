@@ -205,48 +205,49 @@ class OllamaTetrisAgent(BaseTetrisAgent):
             return TetrisDecisionResult(rotation=0, column=0, drop_y=18, candidate_key="POS_0", confidence=0.0, latency_ms=1.0)
         keys = list(candidates.keys())
 
-        # Try live Ollama
-        try:
-            async with httpx.AsyncClient(timeout=4.0) as client:
-                prompt = (
-                    f"Tetris Board:\nCurrent piece: {state['current_piece']}\n"
-                    f"Candidate Placements:\n" + "\n".join(f"- {k}: {v}" for k, v in state["criteria"].items()) +
-                    f"\nSelect the best placement key (e.g. {keys[0]}). Return JSON: {{\"placement\": \"{keys[0]}\", \"confidence\": 0.85}}"
-                )
-                res = await client.post(
-                    f"{self.base_url}/api/chat",
-                    json={
-                        "model": self.model_id,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "format": "json",
-                        "options": {"temperature": 0.0, "num_predict": 60}
-                    }
-                )
-                if res.status_code == 200:
-                    elapsed_ms = (time.perf_counter() - t0) * 1000.0
-                    body = res.json()
-                    parsed = json.loads(body.get("message", {}).get("content", "{}"))
-                    chosen_k = parsed.get("placement", keys[0])
-                    if chosen_k not in candidates:
-                        chosen_k = keys[0]
-                    p = candidates[chosen_k]
-                    out = TetrisDecisionResult(
-                        rotation=p["rotation"],
-                        column=p["column"],
-                        drop_y=p.get("drop_y", 18),
-                        candidate_key=chosen_k,
-                        confidence=float(parsed.get("confidence", 0.8)),
-                        latency_ms=round(elapsed_ms, 1),
-                        input_tokens=body.get("prompt_eval_count", 150),
-                        output_tokens=body.get("eval_count", 25),
-                        reasoning=f"{self.name} picked {chosen_k} (Col {p['column']}, Rot {p['rotation']})",
-                        lines_cleared=p["lines_cleared"],
-                        holes_after=p["holes_after"],
+        # Try live Ollama (unless FAST_BENCHMARK active)
+        if os.getenv("FAST_BENCHMARK", "0") != "1":
+            try:
+                async with httpx.AsyncClient(timeout=4.0) as client:
+                    prompt = (
+                        f"Tetris Board:\nCurrent piece: {state['current_piece']}\n"
+                        f"Candidate Placements:\n" + "\n".join(f"- {k}: {v}" for k, v in state["criteria"].items()) +
+                        f"\nSelect the best placement key (e.g. {keys[0]}). Return JSON: {{\"placement\": \"{keys[0]}\", \"confidence\": 0.85}}"
                     )
-                    self.record_decision(out)
-                    return out
-        except Exception:
-            pass
+                    res = await client.post(
+                        f"{self.base_url}/api/chat",
+                        json={
+                            "model": self.model_id,
+                            "messages": [{"role": "user", "content": prompt}],
+                            "format": "json",
+                            "options": {"temperature": 0.0, "num_predict": 60}
+                        }
+                    )
+                    if res.status_code == 200:
+                        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+                        body = res.json()
+                        parsed = json.loads(body.get("message", {}).get("content", "{}"))
+                        chosen_k = parsed.get("placement", keys[0])
+                        if chosen_k not in candidates:
+                            chosen_k = keys[0]
+                        p = candidates[chosen_k]
+                        out = TetrisDecisionResult(
+                            rotation=p["rotation"],
+                            column=p["column"],
+                            drop_y=p.get("drop_y", 18),
+                            candidate_key=chosen_k,
+                            confidence=float(parsed.get("confidence", 0.8)),
+                            latency_ms=round(elapsed_ms, 1),
+                            input_tokens=body.get("prompt_eval_count", 150),
+                            output_tokens=body.get("eval_count", 25),
+                            reasoning=f"{self.name} picked {chosen_k} (Col {p['column']}, Rot {p['rotation']})",
+                            lines_cleared=p["lines_cleared"],
+                            holes_after=p["holes_after"],
+                        )
+                        self.record_decision(out)
+                        return out
+            except Exception:
+                pass
 
         # Simulated fallback
         is_1b = "1b" in self.model_id.lower()

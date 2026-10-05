@@ -38,8 +38,9 @@ class LayaSnakeAgent(BaseSnakeAgent):
         criteria = state.get("criteria", {})
         candidates = ["UP", "DOWN", "LEFT", "RIGHT"]
 
-        # 1. Live Laya Router Inference
-        if self.router:
+        # 1. Live Laya Router Inference (unless FAST_BENCHMARK is active)
+        import os
+        if self.router and os.getenv("FAST_BENCHMARK", "0") != "1":
             try:
                 state_payload = {
                     "grid_size": state["grid_size"],

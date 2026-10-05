@@ -53,70 +53,71 @@ class OllamaSnakeAgent(BaseSnakeAgent):
             f'{{"move": "<UP|DOWN|LEFT|RIGHT>", "confidence": 0.90, "reasoning": "<short sentence>"}}'
         )
 
-        # 1. Try Live Ollama REST API
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                res = await client.post(
-                    f"{self.base_url}/api/chat",
-                    json={
-                        "model": self.model_id,
-                        "messages": [
-                            {"role": "system", "content": "You are a concise Snake AI. You MUST output valid JSON only."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        "format": "json",
-                        "stream": False,
-                        "options": {
-                            "temperature": 0.1,
-                            "num_predict": 120,
+        # 1. Try Live Ollama REST API (unless FAST_BENCHMARK is active)
+        if os.getenv("FAST_BENCHMARK", "0") != "1":
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    res = await client.post(
+                        f"{self.base_url}/api/chat",
+                        json={
+                            "model": self.model_id,
+                            "messages": [
+                                {"role": "system", "content": "You are a concise Snake AI. You MUST output valid JSON only."},
+                                {"role": "user", "content": prompt}
+                            ],
+                            "format": "json",
+                            "stream": False,
+                            "options": {
+                                "temperature": 0.1,
+                                "num_predict": 120,
+                            }
                         }
-                    }
-                )
-                if res.status_code == 200:
-                    elapsed_ms = (time.perf_counter() - t0) * 1000.0
-                    body = res.json()
-                    content = body.get("message", {}).get("content", "")
-
-                    chosen_dir = "RIGHT"
-                    confidence = 0.80
-                    reasoning = "Ollama move prediction"
-
-                    try:
-                        parsed = json.loads(content)
-                        chosen_dir = str(parsed.get("move", "RIGHT")).upper().strip()
-                        confidence = float(parsed.get("confidence", 0.80))
-                        reasoning = str(parsed.get("reasoning", ""))
-                    except Exception:
-                        # Regex extraction
-                        match = re.search(r'"move"\s*:\s*"([A-Z]+)"', content)
-                        if match and match.group(1) in candidates:
-                            chosen_dir = match.group(1)
-
-                    if chosen_dir not in candidates:
-                        chosen_dir = safe_moves[0] if safe_moves else "RIGHT"
-
-                    in_tokens = body.get("prompt_eval_count", len(prompt.split()) + 30)
-                    out_tokens = body.get("eval_count", len(content.split()))
-
-                    probs = {d: 0.05 for d in candidates}
-                    probs[chosen_dir] = round(confidence, 3)
-
-                    out = DecisionResult(
-                        direction=chosen_dir,
-                        confidence=round(confidence, 3),
-                        latency_ms=round(elapsed_ms, 1),
-                        input_tokens=in_tokens,
-                        output_tokens=out_tokens,
-                        cost_usd=0.0,
-                        reasoning=reasoning or f"Ollama {self.name} selected {chosen_dir}",
-                        probabilities=probs,
-                        is_safe=chosen_dir in safe_moves,
-                        raw_response=content,
                     )
-                    self.record_decision(out)
-                    return out
-        except Exception:
-            pass
+                    if res.status_code == 200:
+                        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+                        body = res.json()
+                        content = body.get("message", {}).get("content", "")
+
+                        chosen_dir = "RIGHT"
+                        confidence = 0.80
+                        reasoning = "Ollama move prediction"
+
+                        try:
+                            parsed = json.loads(content)
+                            chosen_dir = str(parsed.get("move", "RIGHT")).upper().strip()
+                            confidence = float(parsed.get("confidence", 0.80))
+                            reasoning = str(parsed.get("reasoning", ""))
+                        except Exception:
+                            import re
+                            match = re.search(r'"move"\s*:\s*"([A-Z]+)"', content)
+                            if match and match.group(1) in candidates:
+                                chosen_dir = match.group(1)
+
+                        if chosen_dir not in candidates:
+                            chosen_dir = safe_moves[0] if safe_moves else "RIGHT"
+
+                        in_tokens = body.get("prompt_eval_count", len(prompt.split()) + 30)
+                        out_tokens = body.get("eval_count", len(content.split()))
+
+                        probs = {d: 0.05 for d in candidates}
+                        probs[chosen_dir] = round(confidence, 3)
+
+                        out = DecisionResult(
+                            direction=chosen_dir,
+                            confidence=round(confidence, 3),
+                            latency_ms=round(elapsed_ms, 1),
+                            input_tokens=in_tokens,
+                            output_tokens=out_tokens,
+                            cost_usd=0.0,
+                            reasoning=reasoning or f"Ollama {self.name} selected {chosen_dir}",
+                            probabilities=probs,
+                            is_safe=chosen_dir in safe_moves,
+                            raw_response=content,
+                        )
+                        self.record_decision(out)
+                        return out
+            except Exception:
+                pass
 
         # 2. Simulated LLM Fallback (if Ollama model is loading, offline, or timed out)
         is_1b = "1b" in self.model_id.lower()
