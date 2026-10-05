@@ -1,18 +1,36 @@
 import React from 'react';
-import { Trophy, Zap, AlertCircle } from 'lucide-react';
+import { Trophy, ShieldCheck, ShieldAlert } from 'lucide-react';
 
-export default function Leaderboard({ gameMode, models, onSelectModel }) {
+export default function Leaderboard({ gameMode, models, onSelectModel, safetyStatus }) {
   const isSnake = gameMode === 'snake';
+  const isTetris = gameMode === 'tetris';
+  const isChess = gameMode === 'chess';
 
   // Sort models
   const sorted = [...models].sort((a, b) => {
-    const scoreA = isSnake ? (a.game_state?.score || 0) : (a.game_state?.lines_cleared || 0);
-    const scoreB = isSnake ? (b.game_state?.score || 0) : (b.game_state?.lines_cleared || 0);
-    if (scoreB !== scoreA) return scoreB - scoreA;
-
-    const stepsA = isSnake ? (a.game_state?.steps || 0) : (a.game_state?.pieces_placed || 0);
-    const stepsB = isSnake ? (b.game_state?.steps || 0) : (b.game_state?.pieces_placed || 0);
-    if (stepsB !== stepsA) return stepsB - stepsA;
+    if (isSnake) {
+      const scoreA = a.game_state?.score || 0;
+      const scoreB = b.game_state?.score || 0;
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      const stepsA = a.game_state?.steps || 0;
+      const stepsB = b.game_state?.steps || 0;
+      if (stepsB !== stepsA) return stepsB - stepsA;
+    } else if (isTetris) {
+      const linesA = a.game_state?.lines_cleared || 0;
+      const linesB = b.game_state?.lines_cleared || 0;
+      if (linesB !== linesA) return linesB - linesA;
+      const piecesA = a.game_state?.pieces_placed || 0;
+      const piecesB = b.game_state?.pieces_placed || 0;
+      if (piecesB !== piecesA) return piecesB - piecesA;
+    } else {
+      // Chess: Material balance first, then total moves
+      const matA = a.game_state?.material_diff || 0;
+      const matB = b.game_state?.material_diff || 0;
+      if (matB !== matA) return matB - matA;
+      const movesA = a.game_state?.total_moves || 0;
+      const movesB = b.game_state?.total_moves || 0;
+      if (movesB !== movesA) return movesB - movesA;
+    }
 
     const latA = a.telemetry?.avg_latency_ms || 9999;
     const latB = b.telemetry?.avg_latency_ms || 9999;
@@ -76,10 +94,14 @@ export default function Leaderboard({ gameMode, models, onSelectModel }) {
               <th style={{ padding: '6px 12px' }}>Rank</th>
               <th style={{ padding: '6px 12px' }}>Model Architecture</th>
               <th style={{ padding: '6px 12px' }}>Status</th>
-              <th style={{ padding: '6px 12px' }}>{isSnake ? 'Score (Apples)' : 'Lines Cleared'}</th>
-              <th style={{ padding: '6px 12px' }}>{isSnake ? 'Steps Survived' : 'Pieces Placed'}</th>
+              <th style={{ padding: '6px 12px' }}>
+                {isSnake ? 'Score (Apples)' : isTetris ? 'Lines Cleared' : 'Material Balance'}
+              </th>
+              <th style={{ padding: '6px 12px' }}>
+                {isSnake ? 'Steps Survived' : isTetris ? 'Pieces Placed' : 'Moves Played'}
+              </th>
               <th style={{ padding: '6px 12px' }}>Avg Latency</th>
-              <th style={{ padding: '6px 12px' }}>P99 Latency</th>
+              <th style={{ padding: '6px 12px' }}>P50 Latency</th>
               <th style={{ padding: '6px 12px' }}>Token Cost ($)</th>
             </tr>
           </thead>
@@ -87,19 +109,33 @@ export default function Leaderboard({ gameMode, models, onSelectModel }) {
             {sorted.map((m, idx) => {
               const rank = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : `#${idx + 1}`));
               const isAlive = m.game_state?.is_alive !== false;
-              const statusClass = isAlive ? 'alive' : 'crashed';
-              const statusText = isAlive ? 'ALIVE' : (m.game_state?.death_reason || 'DEAD').replace('_', ' ').toUpperCase();
+              const isGemini = m.model_id.includes('gemini');
+              const isCircuitBroken = isGemini && safetyStatus?.is_circuit_broken;
+
+              let statusText = isAlive ? 'ACTIVE' : (m.game_state?.death_reason || m.game_state?.termination || 'DEAD').replace('_', ' ').toUpperCase();
+              let statusClass = isAlive ? 'alive' : 'crashed';
+
+              if (isCircuitBroken) {
+                statusText = 'AUTO-DISABLED (BREAKER)';
+                statusClass = 'crashed';
+              }
+
               const avgLat = m.telemetry?.avg_latency_ms || 0;
+              const p50Lat = m.telemetry?.p50_latency_ms || avgLat;
               const latColor = avgLat < 120 ? 'var(--green-glow)' : (avgLat > 1500 ? 'var(--amber-glow)' : 'var(--cyan-glow)');
               const cost = m.telemetry?.total_cost_usd > 0 ? `$${m.telemetry.total_cost_usd.toFixed(6)}` : '$0.00';
 
               const primaryMetric = isSnake
                 ? (m.game_state?.score || 0)
-                : `${m.game_state?.lines_cleared || 0} lines (${m.game_state?.score || 0} pts)`;
+                : isTetris
+                ? `${m.game_state?.lines_cleared || 0} lines`
+                : (m.game_state?.material_diff > 0 ? `+${m.game_state?.material_diff} MAT` : `${m.game_state?.material_diff || 0} MAT`);
 
               const secondaryMetric = isSnake
                 ? (m.game_state?.steps || 0)
-                : (m.game_state?.pieces_placed || 0);
+                : isTetris
+                ? (m.game_state?.pieces_placed || 0)
+                : `${m.game_state?.total_moves || 0} moves (${m.telemetry?.record || '0W/0L'})`;
 
               return (
                 <tr
@@ -124,6 +160,18 @@ export default function Leaderboard({ gameMode, models, onSelectModel }) {
                         boxShadow: `0 0 8px ${m.color || '#00f3ff'}`
                       }}></span>
                       <span>{m.name}</span>
+                      {isGemini && (
+                        <span style={{
+                          fontSize: '0.62rem',
+                          padding: '1px 5px',
+                          borderRadius: '3px',
+                          background: 'rgba(66, 133, 244, 0.15)',
+                          border: '1px solid #4285F4',
+                          color: '#4285F4'
+                        }}>
+                          CIRCUIT BREAKER
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td style={{ padding: '8px 12px' }}>
@@ -136,7 +184,7 @@ export default function Leaderboard({ gameMode, models, onSelectModel }) {
                   <td style={{ padding: '8px 12px', color: latColor, fontWeight: 'bold' }}>
                     {avgLat}ms
                   </td>
-                  <td style={{ padding: '8px 12px' }}>{m.telemetry?.p99_latency_ms || 0}ms</td>
+                  <td style={{ padding: '8px 12px' }}>{p50Lat}ms</td>
                   <td style={{ padding: '8px 12px' }}>{cost}</td>
                 </tr>
               );

@@ -7,8 +7,12 @@ export default function ModelInspectorModal({ model, lastEvent, onClose }) {
   const dec = lastEvent?.decision || model.telemetry?.last_decision || {};
   const stateRepr = lastEvent?.state_repr || {};
   const probs = dec.probabilities || {};
-  const dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
   const critMap = stateRepr.criteria || {};
+
+  // For snake: UP, DOWN, LEFT, RIGHT. For Tetris/Chess: keys of criteria or candidates
+  const candidateKeys = Object.keys(critMap).length > 0
+    ? Object.keys(critMap).slice(0, 6)
+    : ['UP', 'DOWN', 'LEFT', 'RIGHT'];
 
   return (
     <div
@@ -83,7 +87,7 @@ export default function ModelInspectorModal({ model, lastEvent, onClose }) {
         {/* Body */}
         <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-            {/* Probabilities */}
+            {/* Probabilities / Candidates */}
             <div style={{
               background: 'rgba(15, 23, 42, 0.7)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -100,18 +104,22 @@ export default function ModelInspectorModal({ model, lastEvent, onClose }) {
                 alignItems: 'center',
                 gap: '6px'
               }}>
-                <Cpu size={14} color="var(--cyan-glow)" /> Decision Probabilities
+                <Cpu size={14} color="var(--cyan-glow)" /> Decision Confidence & Candidates
               </div>
 
-              {dirs.map(d => {
-                const val = probs[d] !== undefined ? probs[d] : (dec.direction === d ? dec.confidence : 0.05);
+              {candidateKeys.map(k => {
+                const isChosen = dec.direction === k || dec.candidate_key === k || dec.uci === k || dec.san === k;
+                const val = probs[k] !== undefined
+                  ? probs[k]
+                  : (isChosen ? (dec.confidence || 0.88) : 0.08);
                 const pct = Math.round(val * 100);
-                const isChosen = dec.direction === d;
                 const color = isChosen ? (model.color || '#00f3ff') : 'rgba(255,255,255,0.4)';
 
                 return (
-                  <div key={d} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', marginBottom: '6px' }}>
-                    <span style={{ width: '45px', fontWeight: 'bold', color: isChosen ? color : '#94a3b8' }}>{d}</span>
+                  <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', marginBottom: '6px' }}>
+                    <span style={{ width: '65px', fontWeight: 'bold', color: isChosen ? color : '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {k}
+                    </span>
                     <div style={{ flex: 1, height: '10px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '5px', overflow: 'hidden' }}>
                       <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width 0.3s ease' }}></div>
                     </div>
@@ -121,7 +129,7 @@ export default function ModelInspectorModal({ model, lastEvent, onClose }) {
               })}
             </div>
 
-            {/* Criteria & Hazards */}
+            {/* Criteria & Tactical Evaluation */}
             <div style={{
               background: 'rgba(15, 23, 42, 0.7)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -138,18 +146,18 @@ export default function ModelInspectorModal({ model, lastEvent, onClose }) {
                 alignItems: 'center',
                 gap: '6px'
               }}>
-                <ShieldAlert size={14} color="var(--amber-glow)" /> Spatial Criteria & Hazards
+                <ShieldAlert size={14} color="var(--amber-glow)" /> Evaluated Tactical Criteria
               </div>
 
               {Object.keys(critMap).length > 0 ? (
                 Object.entries(critMap).map(([k, text]) => (
-                  <div key={k} style={{ fontSize: '0.74rem', marginBottom: '6px', fontFamily: 'var(--font-mono)', color: dec.direction?.includes(k) ? '#38bdf8' : '#94a3b8' }}>
+                  <div key={k} style={{ fontSize: '0.74rem', marginBottom: '6px', fontFamily: 'var(--font-mono)', color: dec.direction?.includes(k) || dec.uci === k ? '#38bdf8' : '#94a3b8' }}>
                     <strong style={{ color: 'var(--cyan-glow)' }}>{k}:</strong> {text}
                   </div>
                 ))
               ) : (
                 <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                  {dec.reasoning || 'Evaluated safe moves and distance vectors'}
+                  {dec.reasoning || 'Evaluated safe moves and tactical vectors'}
                 </div>
               )}
             </div>

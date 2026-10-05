@@ -161,6 +161,49 @@ class CyberAudioEngine {
       osc.stop(t + (i + 1) * 0.07);
     });
   }
+
+  playChessMove() {
+    if (this.muted) return;
+    this._init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(160, t + 0.05);
+
+    gain.gain.setValueAtTime(0.10, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(t);
+    osc.stop(t + 0.06);
+  }
+
+  playCheck() {
+    if (this.muted) return;
+    this._init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    [600, 750].forEach((f, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(f, t + idx * 0.06);
+      gain.gain.setValueAtTime(0.12, t + idx * 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + (idx + 1) * 0.08);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t + idx * 0.06);
+      osc.stop(t + (idx + 1) * 0.08);
+    });
+  }
 }
 
 export const cyberAudio = new CyberAudioEngine();

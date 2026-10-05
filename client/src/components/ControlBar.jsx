@@ -12,6 +12,8 @@ export default function ControlBar({
   onUpdateConfig,
 }) {
   const isSnake = gameMode === 'snake';
+  const isTetris = gameMode === 'tetris';
+  const isChess = gameMode === 'chess';
 
   const handleRandomSeed = () => {
     const newSeed = Math.floor(Math.random() * 90000) + 10000;
@@ -102,6 +104,34 @@ export default function ControlBar({
               </select>
             </div>
           </>
+        )}
+
+        {/* Tetris-only Config */}
+        {isTetris && (
+          <div style={{
+            padding: '3px 8px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '4px',
+            fontSize: '0.74rem',
+            color: 'var(--cyan-glow)'
+          }}>
+            MATRIX: 10x20 STANDARD (7-BAG RANDOMIZER)
+          </div>
+        )}
+
+        {/* Chess-only Config */}
+        {isChess && (
+          <div style={{
+            padding: '3px 8px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '4px',
+            fontSize: '0.74rem',
+            color: 'var(--purple-glow)'
+          }}>
+            MATCH: AI (WHITE) vs MINIMAX BENCHMARK (BLACK)
+          </div>
         )}
 
         {/* Seed Input */}

@@ -11,6 +11,7 @@ from backend.models.jev_agent import JevSnakeAgent
 from backend.models.laya_agent import LayaSnakeAgent
 from backend.models.ollama_agent import OllamaSnakeAgent
 from backend.models.heuristic_agent import HeuristicSnakeAgent
+from backend.models.gemini_agent import GeminiSnakeAgent, GLOBAL_GEMINI_TRACKER
 
 
 async def discover_ollama_models(base_url: str = "http://localhost:11434") -> List[Dict[str, str]]:
@@ -50,7 +51,15 @@ def create_default_agents() -> Dict[str, BaseSnakeAgent]:
     )
     agents[jev.model_id] = jev
 
-    # 2. Laya Open-Weight ModernBERT Encoder
+    # 2. Google Gemini Flash (Cloud LLM)
+    gemini = GeminiSnakeAgent(
+        name="Gemini Flash (Google)",
+        model_id="gemini-flash-latest",
+        color="#4285F4",
+    )
+    agents[gemini.model_id] = gemini
+
+    # 3. Laya Open-Weight ModernBERT Encoder
     laya = LayaSnakeAgent(
         name="Laya Encoder (421M)",
         model_id="convaiinnovations/laya",

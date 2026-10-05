@@ -13,6 +13,7 @@ export default function App() {
   const [status, setStatus] = useState('connecting');
   const [turn, setTurn] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const [safetyStatus, setSafetyStatus] = useState(null);
   const [config, setConfig] = useState({
     width: 8,
     height: 8,
@@ -38,7 +39,6 @@ export default function App() {
     const connect = () => {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.host;
-      // In Vite dev mode, proxy /ws to localhost:8000
       const wsUrl = `${protocol}//${host}/ws`;
 
       setStatus('connecting');
@@ -77,6 +77,10 @@ export default function App() {
   }, []);
 
   const handleWebSocketMessage = useCallback((msg) => {
+    if (msg.safety_status) {
+      setSafetyStatus(msg.safety_status);
+    }
+
     if (msg.type === 'FULL_STATE') {
       const gMode = msg.game_mode || 'snake';
       setGameMode(gMode);
@@ -100,6 +104,7 @@ export default function App() {
       let anyScore = false;
       let anyCrashed = false;
       let tetrisLines = 0;
+      let anyChessCheck = false;
 
       events.forEach(ev => {
         newLastEvents[ev.model_id] = ev;
@@ -107,13 +112,16 @@ export default function App() {
         // Audio checks
         if (ev.game_mode === 'snake') {
           if (ev.decision?.eats_food) anyScore = true;
-        } else {
+        } else if (ev.game_mode === 'tetris') {
           if (ev.decision?.lines_cleared > 0) {
             anyScore = true;
             tetrisLines = Math.max(tetrisLines, ev.decision.lines_cleared);
           } else {
             cyberAudio.playPieceLock();
           }
+        } else if (ev.game_mode === 'chess') {
+          if (ev.game_state?.is_check) anyChessCheck = true;
+          cyberAudio.playChessMove();
         }
 
         if (!ev.game_state?.is_alive && ev.decision?.is_safe === false) {
@@ -133,6 +141,7 @@ export default function App() {
 
       // Sound triggers
       if (anyCrashed) cyberAudio.playCrash();
+      else if (anyChessCheck) cyberAudio.playCheck();
       else if (anyScore) {
         if (msg.game_mode === 'tetris') cyberAudio.playLineClear(tetrisLines);
         else cyberAudio.playFood();
@@ -227,7 +236,7 @@ export default function App() {
           confidence: 1.0,
           latency_ms: 0,
           is_safe: true,
-          reasoning: 'Commands: play, pause, step, reset, game tetris, game snake, seed <num>, clear'
+          reasoning: 'Commands: play, pause, step, reset, game chess, game tetris, game snake, seed <num>, clear'
         }
       }]);
     } else if (action === 'play') handlePlay();
@@ -237,7 +246,7 @@ export default function App() {
     else if (action === 'clear') setLogs([]);
     else if (action === 'game' && parts[1]) {
       const g = parts[1].toLowerCase();
-      if (g === 'tetris' || g === 'snake') handleSwitchGame(g);
+      if (g === 'chess' || g === 'tetris' || g === 'snake') handleSwitchGame(g);
     } else if (action === 'seed' && parts[1]) {
       const s = parseInt(parts[1]);
       handleReset({ seed: s });
@@ -254,6 +263,7 @@ export default function App() {
         status={status}
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
+        safetyStatus={safetyStatus}
       />
 
       <ControlBar
@@ -272,6 +282,7 @@ export default function App() {
           gameMode={gameMode}
           models={models}
           onSelectModel={setSelectedModel}
+          safetyStatus={safetyStatus}
         />
 
         <ArenaGrid

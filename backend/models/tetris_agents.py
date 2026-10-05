@@ -303,9 +303,13 @@ class LayaTetrisAgent(BaseTetrisAgent):
 
 
 def create_default_tetris_agents() -> Dict[str, BaseTetrisAgent]:
+    from backend.models.gemini_agent import GeminiTetrisAgent
     agents: Dict[str, BaseTetrisAgent] = {}
     jev = JevTetrisAgent()
     agents[jev.model_id] = jev
+
+    gemini = GeminiTetrisAgent()
+    agents[gemini.model_id] = gemini
 
     laya = LayaTetrisAgent()
     agents[laya.model_id] = laya

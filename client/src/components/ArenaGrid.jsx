@@ -1,6 +1,7 @@
 import React from 'react';
 import SnakeCanvas from './SnakeCanvas';
 import TetrisCanvas from './TetrisCanvas';
+import ChessCanvas from './ChessCanvas';
 import { Eye } from 'lucide-react';
 
 export default function ArenaGrid({
@@ -11,6 +12,8 @@ export default function ArenaGrid({
   speedDelayMs = 300,
 }) {
   const isSnake = gameMode === 'snake';
+  const isTetris = gameMode === 'tetris';
+  const isChess = gameMode === 'chess';
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -42,7 +45,7 @@ export default function ArenaGrid({
           </span>
         </div>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-          Click card to inspect neural activation & state
+          Click card to inspect neural activation & criteria
         </div>
       </div>
 
@@ -62,11 +65,15 @@ export default function ArenaGrid({
 
           const primaryVal = isSnake
             ? (model.game_state?.score || 0)
-            : (model.game_state?.lines_cleared || 0);
+            : isTetris
+            ? (model.game_state?.lines_cleared || 0)
+            : (model.game_state?.material_diff > 0 ? `+${model.game_state?.material_diff}` : model.game_state?.material_diff || 0);
 
           const secondaryVal = isSnake
             ? (model.game_state?.steps || 0)
-            : (model.game_state?.pieces_placed || 0);
+            : isTetris
+            ? (model.game_state?.pieces_placed || 0)
+            : (model.game_state?.total_moves || 0);
 
           return (
             <div
@@ -88,9 +95,9 @@ export default function ArenaGrid({
                 boxShadow: '0 4px 16px rgba(0,0,0,0.3)'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--cyan-glow)';
+                e.currentTarget.style.borderColor = badgeColor;
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 243, 255, 0.15)';
+                e.currentTarget.style.boxShadow = `0 8px 24px ${badgeColor}33`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = 'var(--border-color)';
@@ -138,12 +145,15 @@ export default function ArenaGrid({
               {/* Viewport Canvas Container */}
               <div style={{
                 width: '100%',
-                aspectRatio: isSnake ? '1 / 1' : '10 / 18',
+                aspectRatio: isSnake ? '1 / 1' : isTetris ? '10 / 18' : '1 / 1',
                 background: '#03060a',
                 borderRadius: '8px',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
                 overflow: 'hidden',
-                position: 'relative'
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}>
                 {isSnake ? (
                   <SnakeCanvas
@@ -151,7 +161,7 @@ export default function ArenaGrid({
                     modelColor={badgeColor}
                     isAlive={isAlive}
                   />
-                ) : (
+                ) : isTetris ? (
                   <TetrisCanvas
                     gameState={model.game_state}
                     decision={ev.decision}
@@ -160,9 +170,17 @@ export default function ArenaGrid({
                     isAlive={isAlive}
                     speedDelayMs={speedDelayMs}
                   />
+                ) : (
+                  <ChessCanvas
+                    gameState={model.game_state}
+                    lastEvent={ev}
+                    modelColor={badgeColor}
+                    width={270}
+                    height={270}
+                  />
                 )}
 
-                {/* Dead Overlay */}
+                {/* Dead Overlay for Snake */}
                 {!isAlive && isSnake && (
                   <div style={{
                     position: 'absolute',
@@ -195,16 +213,24 @@ export default function ArenaGrid({
                 border: '1px solid rgba(255, 255, 255, 0.04)'
               }}>
                 <div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{isSnake ? 'SCORE' : 'LINES'}</div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                    {isSnake ? 'SCORE' : isTetris ? 'LINES' : 'MATERIAL'}
+                  </div>
                   <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{primaryVal}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{isSnake ? 'STEPS' : 'PIECES'}</div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                    {isSnake ? 'STEPS' : isTetris ? 'PIECES' : 'MOVES'}
+                  </div>
                   <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{secondaryVal}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>CONFIDENCE</div>
-                  <div style={{ fontWeight: 700, color: 'var(--cyan-glow)' }}>{conf}</div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                    {isChess ? 'RECORD' : 'CONFIDENCE'}
+                  </div>
+                  <div style={{ fontWeight: 700, color: isChess ? badgeColor : 'var(--cyan-glow)' }}>
+                    {isChess ? (model.telemetry?.record || '0W/0D/0L') : conf}
+                  </div>
                 </div>
               </div>
 
@@ -220,7 +246,7 @@ export default function ArenaGrid({
                 background: 'rgba(0, 0, 0, 0.25)',
                 borderRadius: '4px'
               }}>
-                {dec.reasoning || 'Awaiting tick...'}
+                {dec.reasoning || (isChess ? `White move: ${dec.san || 'waiting...'}` : 'Awaiting tick...')}
               </div>
             </div>
           );

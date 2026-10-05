@@ -1,10 +1,11 @@
 """
-FastAPI Server & Real-time WebSocket Hub for Snake & Tetris Multi-Model AI Arena.
+FastAPI Server & Real-time WebSocket Hub for Snake, Tetris & Chess Multi-Model AI Arena.
 """
 
 import os
 import asyncio
 import json
+import chess
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
@@ -17,15 +18,20 @@ from backend.engine.maze import generate_obstacles
 from backend.engine.state_repr import build_model_state
 from backend.models import create_default_agents, discover_ollama_models, BaseSnakeAgent
 from backend.models.ollama_agent import OllamaSnakeAgent
+from backend.models.gemini_agent import GLOBAL_GEMINI_TRACKER
 
 from backend.engine.tetris import TetrisGame
 from backend.engine.tetris_state import build_tetris_state
 from backend.models.tetris_agents import create_default_tetris_agents, BaseTetrisAgent
 
+from backend.engine.chess_engine import ChessGame
+from backend.engine.chess_state import build_chess_state
+from backend.models.chess_agents import create_default_chess_agents, BaseChessAgent, MinimaxChessAgent
+
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
 load_dotenv(ENV_PATH)
 
-app = FastAPI(title="Multi-Model AI Arena (Snake & Tetris)", version="2.0.0")
+app = FastAPI(title="Multi-Model AI Arena (Snake, Tetris & Chess)", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,12 +41,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
-
 
 class ArenaCoordinator:
     def __init__(self):
-        self.game_mode = "snake"  # "snake" or "tetris"
+        self.game_mode = "snake"  # "snake", "tetris", or "chess"
         self.width = 8
         self.height = 8
         self.seed = 42
@@ -59,6 +63,12 @@ class ArenaCoordinator:
         self.tetris_agents: Dict[str, BaseTetrisAgent] = create_default_tetris_agents()
         self.active_tetris_models: List[str] = list(self.tetris_agents.keys())
         self.tetris_games: Dict[str, TetrisGame] = {}
+
+        # Chess agents & games (Each model plays White vs Minimax Benchmark playing Black)
+        self.chess_agents: Dict[str, BaseChessAgent] = create_default_chess_agents()
+        self.active_chess_models: List[str] = list(self.chess_agents.keys())
+        self.chess_games: Dict[str, ChessGame] = {}
+        self.black_opponent = MinimaxChessAgent(name="Minimax Tactical (Black)", model_id="minimax_black_opponent")
 
         self.log_history: List[Dict[str, Any]] = []
         self.connections: List[WebSocket] = []
@@ -86,8 +96,7 @@ class ArenaCoordinator:
                         seed=self.seed,
                         obstacles=obstacles,
                     )
-        else:
-            # Tetris setup (default 10x20 or custom)
+        elif self.game_mode == "tetris":
             t_width = 10
             t_height = 20
             self.tetris_games.clear()
@@ -99,6 +108,13 @@ class ArenaCoordinator:
                         height=t_height,
                         seed=self.seed,
                     )
+        else:
+            # Chess setup
+            self.chess_games.clear()
+            for m_id in self.active_chess_models:
+                if m_id in self.chess_agents:
+                    self.chess_agents[m_id].reset_telemetry()
+                    self.chess_games[m_id] = ChessGame(seed=self.seed)
 
     async def connect_client(self, websocket: WebSocket):
         await websocket.accept()
@@ -139,7 +155,7 @@ class ArenaCoordinator:
                     "game_state": game.get_state(),
                     "telemetry": agent.get_summary_stats(),
                 })
-        else:
+        elif self.game_mode == "tetris":
             for m_id in self.active_tetris_models:
                 game = self.tetris_games.get(m_id)
                 agent = self.tetris_agents.get(m_id)
@@ -153,20 +169,41 @@ class ArenaCoordinator:
                     "game_state": game.get_state(),
                     "telemetry": agent.get_summary_stats(),
                 })
+        else:
+            for m_id in self.active_chess_models:
+                game = self.chess_games.get(m_id)
+                agent = self.chess_agents.get(m_id)
+                if not game or not agent:
+                    continue
+                models_data.append({
+                    "model_id": m_id,
+                    "name": agent.name,
+                    "model_type": agent.model_type,
+                    "color": agent.color,
+                    "game_state": game.get_state(),
+                    "telemetry": agent.get_summary_stats(),
+                })
+
+        active_list = (
+            self.active_snake_models if self.game_mode == "snake"
+            else self.active_tetris_models if self.game_mode == "tetris"
+            else self.active_chess_models
+        )
 
         return {
             "type": "FULL_STATE",
             "game_mode": self.game_mode,
             "turn": self.turn,
             "is_running": self.is_running,
+            "safety_status": GLOBAL_GEMINI_TRACKER.get_status_summary(),
             "config": {
                 "game_mode": self.game_mode,
-                "width": self.width if self.game_mode == "snake" else 10,
-                "height": self.height if self.game_mode == "snake" else 20,
+                "width": self.width if self.game_mode == "snake" else 10 if self.game_mode == "tetris" else 8,
+                "height": self.height if self.game_mode == "snake" else 20 if self.game_mode == "tetris" else 8,
                 "seed": self.seed,
                 "maze_type": self.maze_type,
                 "step_delay_ms": self.step_delay_ms,
-                "active_models": self.active_snake_models if self.game_mode == "snake" else self.active_tetris_models,
+                "active_models": active_list,
             },
             "models": models_data,
         }
@@ -218,7 +255,6 @@ class ArenaCoordinator:
         if not game or not agent or not game.is_alive:
             return None
 
-        # Capture pre-drop state for real-time falling animation
         pre_grid = [row[:] for row in game.grid]
         falling_piece = game.current_piece
 
@@ -271,6 +307,82 @@ class ArenaCoordinator:
         self.log_history.append(event)
         return event
 
+    async def step_chess_model(self, m_id: str) -> Optional[Dict[str, Any]]:
+        game = self.chess_games.get(m_id)
+        agent = self.chess_agents.get(m_id)
+        if not game or not agent or not game.is_alive:
+            return None
+
+        # 1. AI Model plays as WHITE
+        state_repr = build_chess_state(game)
+        white_decision = await agent.decide_move(state_repr, game.board)
+        game.apply_move(white_decision.uci)
+
+        # 2. Benchmark Minimax Opponent immediately plays as BLACK if still alive
+        black_move_san = None
+        if game.is_alive and game.board.turn == chess.BLACK:
+            black_state = build_chess_state(game)
+            black_dec = await self.black_opponent.decide_move(black_state, game.board)
+            game.apply_move(black_dec.uci)
+            black_move_san = black_dec.san
+
+        new_state = game.get_state()
+
+        # Update win/loss records
+        if not game.is_alive:
+            res = new_state.get("result", "*")
+            if res == "1-0":
+                agent.wins += 1
+            elif res == "0-1":
+                agent.losses += 1
+            else:
+                agent.draws += 1
+
+        commands = [
+            f"WHITE {agent.name}: {white_decision.san} ({white_decision.from_square} -> {white_decision.to_square})",
+        ]
+        if black_move_san:
+            commands.append(f"BLACK Minimax: {black_move_san}")
+        if new_state.get("is_check"):
+            commands.append("CHECK!")
+        if not game.is_alive:
+            commands.append(f"GAME OVER: {new_state.get('termination', 'finished').upper()}")
+
+        event = {
+            "turn": self.turn,
+            "game_mode": "chess",
+            "model_id": m_id,
+            "name": agent.name,
+            "model_type": agent.model_type,
+            "color": agent.color,
+            "decision": {
+                "direction": white_decision.san,
+                "san": white_decision.san,
+                "uci": white_decision.uci,
+                "from_square": white_decision.from_square,
+                "to_square": white_decision.to_square,
+                "confidence": white_decision.confidence,
+                "latency_ms": white_decision.latency_ms,
+                "is_safe": game.is_alive,
+                "reasoning": white_decision.reasoning,
+                "cost_usd": white_decision.cost_usd,
+                "eval_score": white_decision.eval_score,
+                "commands": commands,
+                "black_reply": black_move_san,
+            },
+            "game_state": new_state,
+            "telemetry": agent.get_summary_stats(),
+            "state_repr": {
+                "fen": new_state["fen"],
+                "turn": new_state["turn"],
+                "fullmove_number": new_state["fullmove_number"],
+                "criteria": state_repr["criteria"],
+                "ascii_grid": state_repr["ascii_grid"],
+            },
+        }
+        self.log_history.append(event)
+        return event
+
     async def execute_turn(self):
         if self.game_mode == "snake":
             alive = [m for m in self.active_snake_models if self.snake_games.get(m) and self.snake_games[m].is_alive]
@@ -283,11 +395,18 @@ class ArenaCoordinator:
             results = await asyncio.gather(*tasks, return_exceptions=True)
             valid = [r for r in results if isinstance(r, dict) and r is not None]
             all_alive = any(self.snake_games[m].is_alive for m in self.active_snake_models if m in self.snake_games)
-            await self.broadcast({"type": "TICK", "game_mode": "snake", "turn": self.turn, "events": valid, "is_running": self.is_running and all_alive})
+            await self.broadcast({
+                "type": "TICK",
+                "game_mode": "snake",
+                "turn": self.turn,
+                "events": valid,
+                "is_running": self.is_running and all_alive,
+                "safety_status": GLOBAL_GEMINI_TRACKER.get_status_summary(),
+            })
             if not all_alive:
                 self.is_running = False
 
-        else:
+        elif self.game_mode == "tetris":
             alive = [m for m in self.active_tetris_models if self.tetris_games.get(m) and self.tetris_games[m].is_alive]
             if not alive:
                 self.is_running = False
@@ -298,7 +417,37 @@ class ArenaCoordinator:
             results = await asyncio.gather(*tasks, return_exceptions=True)
             valid = [r for r in results if isinstance(r, dict) and r is not None]
             all_alive = any(self.tetris_games[m].is_alive for m in self.active_tetris_models if m in self.tetris_games)
-            await self.broadcast({"type": "TICK", "game_mode": "tetris", "turn": self.turn, "events": valid, "is_running": self.is_running and all_alive})
+            await self.broadcast({
+                "type": "TICK",
+                "game_mode": "tetris",
+                "turn": self.turn,
+                "events": valid,
+                "is_running": self.is_running and all_alive,
+                "safety_status": GLOBAL_GEMINI_TRACKER.get_status_summary(),
+            })
+            if not all_alive:
+                self.is_running = False
+
+        else:
+            # Chess turn
+            alive = [m for m in self.active_chess_models if self.chess_games.get(m) and self.chess_games[m].is_alive]
+            if not alive:
+                self.is_running = False
+                await self.broadcast({"type": "GAME_OVER", "game_mode": "chess", "turn": self.turn})
+                return
+            self.turn += 1
+            tasks = [self.step_chess_model(m) for m in alive]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            valid = [r for r in results if isinstance(r, dict) and r is not None]
+            all_alive = any(self.chess_games[m].is_alive for m in self.active_chess_models if m in self.chess_games)
+            await self.broadcast({
+                "type": "TICK",
+                "game_mode": "chess",
+                "turn": self.turn,
+                "events": valid,
+                "is_running": self.is_running and all_alive,
+                "safety_status": GLOBAL_GEMINI_TRACKER.get_status_summary(),
+            })
             if not all_alive:
                 self.is_running = False
 
@@ -366,8 +515,32 @@ async def get_models():
             }
             for a in coordinator.tetris_agents.values()
         ],
+        "chess_agents": [
+            {
+                "id": a.model_id,
+                "name": a.name,
+                "type": a.model_type,
+                "color": a.color,
+                "active": a.model_id in coordinator.active_chess_models,
+            }
+            for a in coordinator.chess_agents.values()
+        ],
+        "safety": GLOBAL_GEMINI_TRACKER.get_status_summary(),
         "ollama_discovered": ollama_discovered,
     }
+
+
+@app.get("/api/safety")
+async def get_safety():
+    return JSONResponse(content=GLOBAL_GEMINI_TRACKER.get_status_summary())
+
+
+@app.post("/api/safety/reset")
+async def reset_safety():
+    GLOBAL_GEMINI_TRACKER.is_circuit_broken = False
+    GLOBAL_GEMINI_TRACKER.trip_reason = None
+    GLOBAL_GEMINI_TRACKER.last_status = "ACTIVE_SAFE"
+    return JSONResponse(content=GLOBAL_GEMINI_TRACKER.get_status_summary())
 
 
 @app.get("/api/export-logs")

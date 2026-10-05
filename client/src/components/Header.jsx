@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Activity, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX, ShieldCheck, ShieldAlert, Sparkles } from 'lucide-react';
 
 export default function Header({
   gameMode,
@@ -9,8 +9,15 @@ export default function Header({
   status,
   isMuted,
   onToggleMute,
+  safetyStatus,
 }) {
   const isSnake = gameMode === 'snake';
+  const isTetris = gameMode === 'tetris';
+  const isChess = gameMode === 'chess';
+
+  const isCircuitBroken = safetyStatus?.is_circuit_broken;
+  const tokensUsed = safetyStatus?.total_tokens || 0;
+  const maxTokens = safetyStatus?.max_tokens || 50000;
 
   return (
     <header style={{
@@ -33,7 +40,7 @@ export default function Header({
           animation: 'pulseGlow 2.5s infinite',
           lineHeight: 1
         }}>
-          {isSnake ? '🐍' : '🧱'}
+          {isSnake ? '🐍' : isTetris ? '🧱' : '♟️'}
         </div>
         <div>
           <h1 style={{
@@ -41,12 +48,12 @@ export default function Header({
             letterSpacing: '0.08em',
             fontWeight: 800,
             textTransform: 'uppercase',
-            background: 'linear-gradient(90deg, #00f3ff, #a855f7)',
+            background: 'linear-gradient(90deg, #00f3ff, #4285F4, #a855f7)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             margin: 0
           }}>
-            {isSnake ? 'Cyber-Snake AI Arena' : 'Cyber-Tetris AI Arena'}
+            {isSnake ? 'Cyber-Snake AI Arena' : isTetris ? 'Cyber-Tetris AI Arena' : 'Cyber-Chess Tactical Arena'}
           </h1>
           <div style={{
             fontSize: '0.72rem',
@@ -54,12 +61,12 @@ export default function Header({
             color: 'var(--text-muted)',
             letterSpacing: '0.05em'
           }}>
-            JEV 1.13 SYSTEM-ONE vs LAYA vs OLLAMA LOCAL LLMS
+            JEV 1.13 SYSTEM-ONE • GEMINI FLASH • LAYA • OLLAMA LOCAL LLMS
           </div>
         </div>
       </div>
 
-      {/* Game Mode Tabs */}
+      {/* Game Mode Tabs: Snake, Tetris, Chess */}
       <div style={{
         display: 'flex',
         gap: '6px',
@@ -71,21 +78,47 @@ export default function Header({
         <button
           className={`cyber-btn ${isSnake ? 'active' : ''}`}
           onClick={() => setGameMode('snake')}
-          style={{ padding: '6px 14px' }}
+          style={{ padding: '6px 12px', fontSize: '0.78rem' }}
         >
           <span>🐍</span> CYBER-SNAKE
         </button>
         <button
-          className={`cyber-btn ${!isSnake ? 'active' : ''}`}
+          className={`cyber-btn ${isTetris ? 'active' : ''}`}
           onClick={() => setGameMode('tetris')}
-          style={{ padding: '6px 14px' }}
+          style={{ padding: '6px 12px', fontSize: '0.78rem' }}
         >
           <span>🧱</span> CYBER-TETRIS
+        </button>
+        <button
+          className={`cyber-btn ${isChess ? 'active' : ''}`}
+          onClick={() => setGameMode('chess')}
+          style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+        >
+          <span>♟️</span> CYBER-CHESS
         </button>
       </div>
 
       {/* Status & Telemetry HUD */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>
+        {/* Gemini Safety Breaker Pill */}
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '4px 10px',
+          borderRadius: '6px',
+          background: isCircuitBroken ? 'rgba(239, 68, 68, 0.15)' : 'rgba(66, 133, 244, 0.12)',
+          border: `1px solid ${isCircuitBroken ? '#ef4444' : '#4285F4'}`,
+          color: isCircuitBroken ? '#f87171' : '#4285F4',
+          boxShadow: isCircuitBroken ? '0 0 10px rgba(239, 68, 68, 0.2)' : '0 0 8px rgba(66, 133, 244, 0.15)'
+        }} title={isCircuitBroken ? safetyStatus?.trip_reason : 'Gemini Token Safety Monitor'}>
+          {isCircuitBroken ? <ShieldAlert size={14} /> : <ShieldCheck size={14} />}
+          <span>
+            {isCircuitBroken ? 'BREAKER: AUTO-DISABLED' : `GEMINI: ${tokensUsed.toLocaleString()}/${maxTokens.toLocaleString()} TOKENS`}
+          </span>
+        </div>
+
+        {/* Server WS Status */}
         <div style={{
           display: 'inline-flex',
           alignItems: 'center',
