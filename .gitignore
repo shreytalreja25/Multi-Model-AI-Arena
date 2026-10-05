@@ -11,3 +11,6 @@ Thumbs.db
 # Experiment traces (large JSON and raw step dumps)
 experiments/*.json
 experiments/*_steps.csv
+
+# Graphify knowledge graph
+graphify-out/
