@@ -732,3 +732,20 @@ if os.path.exists(os.path.join(FRONTEND_DIR, "js")):
 @app.get("/")
 async def serve_index():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+
+@app.get("/graph")
+async def serve_graph_2d():
+    graph_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "graphify-out", "graph.html")
+    if os.path.exists(graph_path):
+        return FileResponse(graph_path)
+    return JSONResponse({"error": "graph.html not found"}, status_code=404)
+
+
+@app.get("/graph3d")
+async def serve_graph_3d():
+    graph_3d_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "graphify-out", "graph_3d.html")
+    if os.path.exists(graph_3d_path):
+        return FileResponse(graph_3d_path)
+    return JSONResponse({"error": "graph_3d.html not found"}, status_code=404)
+
