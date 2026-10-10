@@ -82,7 +82,7 @@ async def run_headless_experiment_ui():
     # 1. Select Game Mode
     game_mode = Prompt.ask(
         "Select benchmark domain",
-        choices=["snake", "tetris", "chess"],
+        choices=["snake", "tetris", "chess", "dino"],
         default="snake"
     )
 
@@ -92,8 +92,8 @@ async def run_headless_experiment_ui():
     seeds = [base_seed + i * 59 for i in range(num_episodes)]
 
     # 3. Max Turns
-    default_turns = 100 if game_mode == "snake" else (60 if game_mode == "tetris" else 40)
-    max_turns = IntPrompt.ask("Max turns / pieces per episode", default=default_turns)
+    default_turns = 120 if game_mode == "dino" else (100 if game_mode == "snake" else (60 if game_mode == "tetris" else 40))
+    max_turns = IntPrompt.ask("Max turns / pieces / distance per episode", default=default_turns)
 
     # 4. Mode: Live vs Fast
     console.print("\n[bold yellow]Execution Speed Mode:[/bold yellow]")
@@ -210,7 +210,7 @@ def run_sped_up_replayer_ui():
             for ev in turn_events:
                 dec = ev.get("decision", {})
                 st = ev.get("game_state", {})
-                score_val = st.get("score") if g_mode == "snake" else (st.get("lines_cleared") if g_mode == "tetris" else st.get("material_diff"))
+                score_val = st.get("score", int(st.get("distance", 0))) if g_mode in ["snake", "dino"] else (st.get("lines_cleared") if g_mode == "tetris" else st.get("material_diff"))
                 move_str = dec.get("san") or dec.get("direction", "")
                 table.add_row(
                     ev.get("name", "Unknown"),

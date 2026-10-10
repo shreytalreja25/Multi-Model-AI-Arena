@@ -14,6 +14,7 @@ export default function Header({
   const isSnake = gameMode === 'snake';
   const isTetris = gameMode === 'tetris';
   const isChess = gameMode === 'chess';
+  const isDino = gameMode === 'dino';
 
   const isCircuitBroken = safetyStatus?.is_circuit_broken;
   const tokensUsed = safetyStatus?.total_tokens || 0;
@@ -40,7 +41,7 @@ export default function Header({
           animation: 'pulseGlow 2.5s infinite',
           lineHeight: 1
         }}>
-          {isSnake ? '🐍' : isTetris ? '🧱' : '♟️'}
+          {isSnake ? '🐍' : isTetris ? '🧱' : isChess ? '♟️' : '🦖'}
         </div>
         <div>
           <h1 style={{
@@ -53,7 +54,7 @@ export default function Header({
             WebkitTextFillColor: 'transparent',
             margin: 0
           }}>
-            {isSnake ? 'Cyber-Snake AI Arena' : isTetris ? 'Cyber-Tetris AI Arena' : 'Cyber-Chess Tactical Arena'}
+            {isSnake ? 'Cyber-Snake AI Arena' : isTetris ? 'Cyber-Tetris AI Arena' : isChess ? 'Cyber-Chess Tactical Arena' : 'Cyber-Dino Chrome Runner Arena'}
           </h1>
           <div style={{
             fontSize: '0.72rem',
@@ -66,7 +67,7 @@ export default function Header({
         </div>
       </div>
 
-      {/* Game Mode Tabs: Snake, Tetris, Chess */}
+      {/* Game Mode Tabs: Snake, Tetris, Chess, Dino */}
       <div style={{
         display: 'flex',
         gap: '6px',
@@ -95,6 +96,13 @@ export default function Header({
           style={{ padding: '6px 12px', fontSize: '0.78rem' }}
         >
           <span>♟️</span> CYBER-CHESS
+        </button>
+        <button
+          className={`cyber-btn ${isDino ? 'active' : ''}`}
+          onClick={() => setGameMode('dino')}
+          style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+        >
+          <span>🦖</span> CYBER-DINO
         </button>
       </div>
 

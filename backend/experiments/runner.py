@@ -27,6 +27,10 @@ from backend.engine.chess_state import build_chess_state
 from backend.models.chess_agents import create_default_chess_agents, BaseChessAgent, MinimaxChessAgent
 import chess
 
+from backend.engine.dino_engine import DinoGame
+from backend.engine.dino_state import build_dino_state
+from backend.models.dino_agents import create_default_dino_agents, BaseDinoAgent
+
 EXPERIMENTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "experiments")
 os.makedirs(EXPERIMENTS_DIR, exist_ok=True)
 
@@ -53,9 +57,11 @@ class HeadlessExperimentRunner:
             self.agents = create_default_agents()
         elif self.game_mode == "tetris":
             self.agents = create_default_tetris_agents()
-        else:
+        elif self.game_mode == "chess":
             self.agents = create_default_chess_agents()
             self.black_opponent = MinimaxChessAgent(name="Minimax Tactical (Black)", model_id="minimax_black_opponent")
+        else:  # dino
+            self.agents = create_default_dino_agents()
 
         if model_ids:
             self.active_models = [m for m in model_ids if m in self.agents]
@@ -151,6 +157,28 @@ class HeadlessExperimentRunner:
             "game_state": new_state,
         }
 
+    async def _step_dino(self, game: DinoGame, agent: BaseDinoAgent, turn: int, seed: int) -> Dict[str, Any]:
+        state_repr = build_dino_state(game)
+        dec = await agent.decide_action(state_repr)
+        new_state = game.step(dec.action)
+        return {
+            "turn": turn,
+            "seed": seed,
+            "model_id": agent.model_id,
+            "name": agent.name,
+            "decision": {
+                "direction": dec.action,
+                "action": dec.action,
+                "confidence": dec.confidence,
+                "latency_ms": dec.latency_ms,
+                "is_safe": game.is_alive,
+                "reasoning": dec.reasoning,
+                "cost_usd": dec.cost_usd,
+                "threat_evaluated": dec.threat_evaluated,
+            },
+            "game_state": new_state,
+        }
+
     async def run(
         self,
         progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None
@@ -173,9 +201,12 @@ class HeadlessExperimentRunner:
             elif self.game_mode == "tetris":
                 for m_id in self.active_models:
                     games[m_id] = TetrisGame(10, 20, seed)
-            else:
+            elif self.game_mode == "chess":
                 for m_id in self.active_models:
                     games[m_id] = ChessGame(seed=seed)
+            else:  # dino
+                for m_id in self.active_models:
+                    games[m_id] = DinoGame(seed=seed)
 
             # Reset telemetry for this episode
             for m_id in self.active_models:
@@ -196,8 +227,10 @@ class HeadlessExperimentRunner:
                         tasks.append(self._step_snake(g, a, turn, seed))
                     elif self.game_mode == "tetris":
                         tasks.append(self._step_tetris(g, a, turn, seed))
-                    else:
+                    elif self.game_mode == "chess":
                         tasks.append(self._step_chess(g, a, turn, seed))
+                    else:
+                        tasks.append(self._step_dino(g, a, turn, seed))
 
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 for r in results:
@@ -217,9 +250,12 @@ class HeadlessExperimentRunner:
                 elif self.game_mode == "tetris":
                     primary = st.get("lines_cleared", 0)
                     secondary = st.get("pieces_placed", 0)
-                else:
+                elif self.game_mode == "chess":
                     primary = st.get("material_diff", 0.0)
                     secondary = st.get("total_moves", 0)
+                else:  # dino
+                    primary = st.get("score", int(st.get("distance", 0)))
+                    secondary = st.get("obstacles_cleared", 0)
 
                 lats = getattr(a, "latencies_ms", [])
                 p50 = float(np.percentile(lats, 50)) if lats else 0.0

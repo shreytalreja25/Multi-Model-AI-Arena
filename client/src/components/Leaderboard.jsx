@@ -5,6 +5,7 @@ export default function Leaderboard({ gameMode, models, onSelectModel, safetySta
   const isSnake = gameMode === 'snake';
   const isTetris = gameMode === 'tetris';
   const isChess = gameMode === 'chess';
+  const isDino = gameMode === 'dino';
 
   // Sort models
   const sorted = [...models].sort((a, b) => {
@@ -22,7 +23,7 @@ export default function Leaderboard({ gameMode, models, onSelectModel, safetySta
       const piecesA = a.game_state?.pieces_placed || 0;
       const piecesB = b.game_state?.pieces_placed || 0;
       if (piecesB !== piecesA) return piecesB - piecesA;
-    } else {
+    } else if (isChess) {
       // Chess: Material balance first, then total moves
       const matA = a.game_state?.material_diff || 0;
       const matB = b.game_state?.material_diff || 0;
@@ -30,6 +31,14 @@ export default function Leaderboard({ gameMode, models, onSelectModel, safetySta
       const movesA = a.game_state?.total_moves || 0;
       const movesB = b.game_state?.total_moves || 0;
       if (movesB !== movesA) return movesB - movesA;
+    } else {
+      // Dino: distance traveled first, then obstacles cleared
+      const distA = a.game_state?.distance || 0;
+      const distB = b.game_state?.distance || 0;
+      if (distB !== distA) return distB - distA;
+      const obsA = a.game_state?.obstacles_cleared || 0;
+      const obsB = b.game_state?.obstacles_cleared || 0;
+      if (obsB !== obsA) return obsB - obsA;
     }
 
     const latA = a.telemetry?.avg_latency_ms || 9999;
@@ -95,10 +104,10 @@ export default function Leaderboard({ gameMode, models, onSelectModel, safetySta
               <th style={{ padding: '6px 12px' }}>Model Architecture</th>
               <th style={{ padding: '6px 12px' }}>Status</th>
               <th style={{ padding: '6px 12px' }}>
-                {isSnake ? 'Score (Apples)' : isTetris ? 'Lines Cleared' : 'Material Balance'}
+                {isSnake ? 'Score (Apples)' : isTetris ? 'Lines Cleared' : isChess ? 'Material Balance' : 'Distance Traveled'}
               </th>
               <th style={{ padding: '6px 12px' }}>
-                {isSnake ? 'Steps Survived' : isTetris ? 'Pieces Placed' : 'Moves Played'}
+                {isSnake ? 'Steps Survived' : isTetris ? 'Pieces Placed' : isChess ? 'Moves Played' : 'Obstacles Cleared'}
               </th>
               <th style={{ padding: '6px 12px' }}>Avg Latency</th>
               <th style={{ padding: '6px 12px' }}>P50 Latency</th>
@@ -129,13 +138,17 @@ export default function Leaderboard({ gameMode, models, onSelectModel, safetySta
                 ? (m.game_state?.score || 0)
                 : isTetris
                 ? `${m.game_state?.lines_cleared || 0} lines`
-                : (m.game_state?.material_diff > 0 ? `+${m.game_state?.material_diff} MAT` : `${m.game_state?.material_diff || 0} MAT`);
+                : isChess
+                ? (m.game_state?.material_diff > 0 ? `+${m.game_state?.material_diff} MAT` : `${m.game_state?.material_diff || 0} MAT`)
+                : `${Math.floor(m.game_state?.distance || 0)}m`;
 
               const secondaryMetric = isSnake
                 ? (m.game_state?.steps || 0)
                 : isTetris
                 ? (m.game_state?.pieces_placed || 0)
-                : `${m.game_state?.total_moves || 0} moves (${m.telemetry?.record || '0W/0L'})`;
+                : isChess
+                ? `${m.game_state?.total_moves || 0} moves (${m.telemetry?.record || '0W/0L'})`
+                : `${m.game_state?.obstacles_cleared || 0} cleared (${m.game_state?.speed ? m.game_state.speed.toFixed(1) : 6.0} px/f)`;
 
               return (
                 <tr

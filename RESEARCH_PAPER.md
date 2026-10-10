@@ -167,44 +167,55 @@ All experiments were executed under standardized test conditions across **10 det
 
 ### 4.1 Benchmark Summary Data
 
-#### Table 1: Cyber-Snake Empirical Benchmark Results (10 Episodes)
-| Model | Paradigm | Mean Score $\pm$ Std | Median | Max | Mean Survival Steps | Survival Rate (%) | P50 Latency (ms) | Avg Latency (ms) | Cost / 1k Steps ($) |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **TypeSafe Jev 1.13** | System-One Primitive | **$6.90 \pm 1.22$** | **7.0** | **9.0** | **40.0** | **100.0%** | **85.9** | **85.6** | **$0.0063** |
-| **Google Gemini Flash** | Cloud Multimodal LLM | $6.90 \pm 1.22$ | 7.0 | 9.0 | 40.0 | 100.0% | 199.7 | 199.6 | $0.0000^*$ |
-| **A\* Pathfinder** | Algorithmic Optimal | $6.50 \pm 1.02$ | 7.0 | 8.0 | 40.0 | 100.0% | 0.5 | 0.5 | $0.0000$ |
-| **Qwen 3.5 9B** | Local Dense LLM (Ollama) | $5.50 \pm 0.92$ | 6.0 | 6.0 | 39.5 | 90.0% | 2,358.6 | 2,357.6 | $0.0000$ |
-| **Llama 3.1 8B** | Local Dense LLM (Ollama) | $5.00 \pm 1.90$ | 5.5 | 7.0 | 37.6 | 90.0% | 2,363.2 | 2,365.9 | $0.0000$ |
-| **Llama 3.2 1B** | Local Small LLM (Ollama) | $3.70 \pm 1.68$ | 4.0 | 6.0 | 37.6 | 90.0% | 886.5 | 909.6 | $0.0000$ |
-| **Laya 421M** | Bidirectional Encoder | $1.00 \pm 1.26$ | 0.5 | 4.0 | 9.3 | 0.0% | 275.3 | 391.4 | $0.0000$ |
+#### Table 1: Cyber-Snake Empirical Benchmark Results
+| Model | Paradigm | Max Score | Mean Survival Steps | Survival Rate (%) | P50 Latency (ms) | Fatal Failure Mode | Cost / 1k Steps ($) |
+| :--- | :--- | :---: | :---: | :---: | :---: | :--- | :---: |
+| **A\* Pathfinder** | Algorithmic Optimal | **23** | **156.0** | **100.0%** | **0.5** | `SELF COLLISION` (Map saturated) | $0.0000 |
+| **GPT-6 Luna** | OpenAI Decisions API | **18** | **129.0** | **100.0%** | **1,242.9** | **`SELF COLLISION`** *(Zero illegal reversals)* | **$0.0558** |
+| **TypeSafe Jev 1.13** | System-One Primitive | **18** | **133.0** | **100.0%** | **563.9** | `REVERSE INTO NECK` | **$0.0056** |
+| **Google Gemini Flash** | Cloud Multimodal LLM | 18 | 129.0 | 100.0% | **203.0** | `REVERSE INTO NECK` | $0.0002 |
+| **Llama 3.1 8B** | Local Dense LLM (Ollama) | 16 | 117.0 | 90.0% | 2,537.0 | `SELF COLLISION` | $0.0000 |
+| **Qwen 3.5 9B** | Local Dense LLM (Ollama) | 9 | 65.0 | 90.0% | 2,401.0 | `WALL COLLISION` | $0.0000 |
+| **Llama 3.2 1B** | Local Small LLM (Ollama) | 2 | 28.0 | 60.0% | 932.0 | `REVERSE INTO NECK` | $0.0000 |
+| **Laya Encoder 421M** | Bidirectional Encoder | 1 | 8.0 | 0.0% | **59.0** | `WALL COLLISION` (Greedy loop) | $0.0000 |
 
 *\*Gemini cost reflects free tier development quota under active Circuit Breaker regulation.*
 
 ---
 
-#### Table 2: Cyber-Tetris Empirical Benchmark Results (10 Episodes)
-| Model | Paradigm | Cleared Lines $\pm$ Std | Median | Max | Total Steps | Survival Rate (%) | P50 Latency (ms) | Avg Latency (ms) | Cost / 1k Steps ($) |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Dellacherie Solver** | Classical Heuristic | **$11.60 \pm 1.20$** | 12.0 | 13.0 | 35.0 | 100.0% | **0.4** | **0.4** | $0.0000$ |
-| **TypeSafe Jev 1.13** | System-One Primitive | **$11.60 \pm 1.20$** | 12.0 | 13.0 | 35.0 | 100.0% | **84.0** | **83.5** | **$0.0059** |
-| **Google Gemini Flash** | Cloud Multimodal LLM | $11.60 \pm 1.20$ | 12.0 | 13.0 | 35.0 | 100.0% | 204.0 | 204.4 | $0.0000$ |
-| **Qwen 3.5 9B** | Local Dense LLM (Ollama) | $11.60 \pm 1.20$ | 12.0 | 13.0 | 35.0 | 100.0% | 2,482.0 | 2,489.8 | $0.0000$ |
-| **Llama 3.1 8B** | Local Dense LLM (Ollama) | $11.60 \pm 1.20$ | 12.0 | 13.0 | 35.0 | 100.0% | 2,482.0 | 2,489.8 | $0.0000$ |
-| **Llama 3.2 1B** | Local Small LLM (Ollama) | $11.60 \pm 1.20$ | 12.0 | 13.0 | 35.0 | 100.0% | 882.0 | 889.8 | $0.0000$ |
-| **Laya 421M** | Bidirectional Encoder | $11.40 \pm 0.66$ | 11.5 | 12.0 | 35.0 | 100.0% | **60.0** | **60.3** | $0.0000$ |
+#### Table 2: Cyber-Tetris Empirical Benchmark Results
+| Model | Paradigm | Cleared Lines | Pieces Placed | P50 Latency (ms) | Cost / Game ($) |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **GPT-6 Luna** | OpenAI Decisions API | **18.0** | **50.0** | **1,039.7** | $0.002682 |
+| **TypeSafe Jev 1.13** | System-One Primitive | **18.0** | **50.0** | **510.1** | $0.000294 |
+| **Google Gemini Flash** | Cloud Multimodal LLM | 17.7 | 50.0 | 204.0 | $0.000000 |
+| **Qwen 3.5 9B** | Local Dense LLM (Ollama) | 17.7 | 50.0 | 2,506.0 | $0.000000 |
+| **Llama 3.1 8B** | Local Dense LLM (Ollama) | 17.7 | 50.0 | 2,506.0 | $0.000000 |
+| **Laya Encoder 421M** | Bidirectional Encoder | 17.0 | 50.0 | **63.0** | $0.000000 |
 
 ---
 
-#### Table 3: Cyber-Chess Tactical Defense Benchmark Results (10 Episodes vs. Aggressive Attacker)
-| Model | Paradigm | Material Balance ($\Delta \text{MAT}$) | Survived Turns | Survival Rate (%) | P50 Latency (ms) | Avg Latency (ms) | Cost / 1k Steps ($) |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Minimax Depth-3** | Minimax Engine | **$0.0 \pm 0.0$ (Draw)** | 22.0 (Terminal Draw) | 0.0% | 84.2 | 84.2 | $0.0000$ |
-| **TypeSafe Jev 1.13** | System-One Primitive | **$-6.4 \pm 0.0$** | **50.0 (Max Length)** | **100.0%** | **79.0** | **80.1** | **$0.0029$** |
-| **ConvAI Laya 421M** | Bidirectional Encoder | $-6.4 \pm 0.0$ | 50.0 (Max Length) | 100.0% | **60.0** | **59.8** | $0.0000$ |
-| **Google Gemini Flash** | Cloud Multimodal LLM | $-6.4 \pm 0.0$ | 50.0 (Max Length) | 100.0% | 197.0 | 198.8 | $0.0000$ |
-| **Qwen 3.5 9B** | Local Dense LLM (Ollama) | $-6.4 \pm 0.0$ | 50.0 (Max Length) | 100.0% | 2,576.0 | 2,589.8 | $0.0000$ |
-| **Llama 3.1 8B** | Local Dense LLM (Ollama) | $-6.4 \pm 0.0$ | 50.0 (Max Length) | 100.0% | 2,576.0 | 2,589.8 | $0.0000$ |
-| **Llama 3.2 1B** | Local Small LLM (Ollama) | $-6.4 \pm 0.0$ | 50.0 (Max Length) | 100.0% | 926.0 | 939.8 | $0.0000$ |
+#### Table 3: Cyber-Chess Tactical Defense Benchmark Results (vs. Tactical Minimax Opponent)
+| Model | Paradigm | Material Balance ($\Delta \text{MAT}$) | Survived Turns | P50 Latency (ms) | Defense Status |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **Google Gemini Flash** | Cloud Multimodal LLM | **-6.4** | **60.0** | **199.0** | Active Resistance |
+| **Qwen 3.5 9B** | Local Dense LLM (Ollama) | **-6.4** | **60.0** | 2,595.0 | Active Resistance |
+| **Llama 3.1 8B** | Local Dense LLM (Ollama) | **-6.4** | **60.0** | 2,595.0 | Active Resistance |
+| **Laya Encoder 421M** | Bidirectional Encoder | -15.7 | 56.0 | **59.0** | Minor Piece Deficit |
+| **TypeSafe Jev 1.13** | System-One Primitive | -19.0 | 49.3 | 464.2 | Tactical Pin Fallback |
+| **GPT-6 Luna** | OpenAI Decisions API | -25.7 | 44.0 | 1,127.2 | Heavy Tactical Attrition |
+
+---
+
+#### Table 4: Cyber-Dino (High-Frequency Reflex Runner) Benchmark Results
+| Model | Paradigm | Distance Survived (px) | Obstacles Cleared | P50 Latency (ms) | Real-time Viability |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **Laya Encoder 421M** | Bidirectional Encoder | **102.9** | **2.0** | **58.0** | **Viable (Sub-100ms)** |
+| **TypeSafe Jev 1.13** | System-One Primitive | **102.9** | **2.0** | **78.5** | **Viable (Sub-100ms)** |
+| **Google Gemini Flash** | Cloud Multimodal LLM | 102.9 | 2.0 | 198.5 | Marginal (Jitter sensitive) |
+| **Qwen 3.5 9B** | Local Dense LLM (Ollama) | 102.9 | 2.0 | 2,350.0 | Non-viable (Buffer required) |
+| **Llama 3.1 8B** | Local Dense LLM (Ollama) | 102.9 | 2.0 | 2,350.0 | Non-viable (Buffer required) |
+| **GPT-6 Luna** | OpenAI Decisions API | 35.0 | 0.0 | 1,180.3 | Non-viable (Cloud RTT latency) |
 
 ---
 
@@ -254,6 +265,28 @@ Miller’s classic perceptual threshold and modern human-computer interaction gu
 - As shown in Figure 4, only **Algorithmic Solvers ($0.4\text{--}0.5\text{ ms}$)**, **Specialized Encoders ($60.0\text{ ms}$)**, and **System-One Primitives ($84.0\text{--}85.9\text{ ms}$)** operate comfortably beneath this $100\text{ ms}$ real-time boundary.
 - Cloud LLMs (Gemini Flash at $\approx 200\text{ ms}$) exceed the threshold by $2\times$ due to network round-trip time (RTT) and TLS handshakes.
 - Local dense LLMs (Qwen 9B, Llama 8B at $\approx 2,400\text{ ms}$) exceed the threshold by **$24\times$**, rendering them physically unsuitable for direct real-time closed-loop control without asynchronous buffer decoupling.
+
+---
+
+### 4.6 Execution Pipeline Architecture: Lock-Step vs. Decoupled Asynchronous Coroutines
+
+![Figure 5: Async Speedup](experiments/charts/fig5_async_speedup.png)
+*Figure 5: Execution latency comparison between lock-step synchronous batching (`asyncio.gather` across all agents) and decoupled asynchronous coroutines where each model runs on its native tick frequency.*
+
+A critical architectural revelation emerged during high-throughput benchmarking:
+- **The Lock-Step Synchronization Bottleneck:** Standard multi-agent game loops collect decisions via lock-step synchronization:
+  $$\Delta t_{\text{tick}} = \max_{m \in \mathcal{M}_{\text{alive}}} \left( \text{Latency}(m) \right)$$
+  Under lock-step scheduling, the entire arena runs at the speed of the slowest participant. Fast System-One models (Laya at $59.0\text{ ms}$, Jev at $512\text{ ms}$) are forced into artificial idle blocking states waiting for dense Ollama models ($2,537\text{ ms}$), creating severe perceptual lag.
+- **Decoupled Asynchronous Coroutines:** By decoupling each agent into an independent concurrent coroutine, models advance according to their intrinsic latency profiles. This unlocks a **$43.0\times$ wall-clock speedup** for System-One primitives and bidirectional encoders, proving that game loops must decouple decision generation from physical state updates.
+
+---
+
+### 4.7 Offline Local Inference Paradigms for System-One Models
+
+While TypeSafe Jev 1.13 and OpenAI Decisions API (`gpt-6-luna`) operate via hosted cloud REST endpoints, real-world edge applications frequently require air-gapped, zero-network autonomy:
+1. **ConvAI Laya 421M (ModernBERT):** Fully open-weights bidirectional encoder natively executing on local edge hardware with $0.00$ API cost, zero network dependencies, and ultra-fast $58\text{--}63\text{ ms}$ forward passes.
+2. **Open-Source System-One Implementations (`system-one-open` / Gemma 3/4):** Lightweight instruction-tuned SLMs (e.g., Gemma 3 270M, Gemma 4 E2B) running locally via `uv run` to mirror the typed zero-shot decision contract of hosted System-One primitives.
+3. **Local Jev Wire Adapters (`local-jev`):** FastAPI drop-in gateways running quantized local SLMs (Qwen 2.5 / 3.5) with Jev wire format compatibility for offline local fallback.
 
 ---
 

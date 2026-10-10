@@ -483,10 +483,14 @@ class OllamaChessAgent(BaseChessAgent):
 
 
 def create_default_chess_agents() -> Dict[str, BaseChessAgent]:
+    from backend.models.openai_decisions_agent import OpenAIDecisionsChessAgent
     agents: Dict[str, BaseChessAgent] = {}
 
     jev = JevChessAgent()
     agents[jev.model_id] = jev
+
+    gpt6 = OpenAIDecisionsChessAgent()
+    agents[gpt6.model_id] = gpt6
 
     gemini = GeminiChessAgent()
     agents[gemini.model_id] = gemini

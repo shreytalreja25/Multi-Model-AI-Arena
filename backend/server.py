@@ -28,10 +28,14 @@ from backend.engine.chess_engine import ChessGame
 from backend.engine.chess_state import build_chess_state
 from backend.models.chess_agents import create_default_chess_agents, BaseChessAgent, MinimaxChessAgent
 
+from backend.engine.dino_engine import DinoGame
+from backend.engine.dino_state import build_dino_state
+from backend.models.dino_agents import create_default_dino_agents, BaseDinoAgent
+
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
 load_dotenv(ENV_PATH)
 
-app = FastAPI(title="Multi-Model AI Arena (Snake, Tetris & Chess)", version="3.0.0")
+app = FastAPI(title="Multi-Model AI Arena (Snake, Tetris, Chess & Dino)", version="4.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,6 +73,11 @@ class ArenaCoordinator:
         self.active_chess_models: List[str] = list(self.chess_agents.keys())
         self.chess_games: Dict[str, ChessGame] = {}
         self.black_opponent = MinimaxChessAgent(name="Minimax Tactical (Black)", model_id="minimax_black_opponent")
+
+        # Cyber-Dino agents & games (Chrome Dinosaur Runner Mode)
+        self.dino_agents: Dict[str, BaseDinoAgent] = create_default_dino_agents()
+        self.active_dino_models: List[str] = list(self.dino_agents.keys())
+        self.dino_games: Dict[str, DinoGame] = {}
 
         self.log_history: List[Dict[str, Any]] = []
         self.connections: List[WebSocket] = []
@@ -108,13 +117,20 @@ class ArenaCoordinator:
                         height=t_height,
                         seed=self.seed,
                     )
-        else:
+        elif self.game_mode == "chess":
             # Chess setup
             self.chess_games.clear()
             for m_id in self.active_chess_models:
                 if m_id in self.chess_agents:
                     self.chess_agents[m_id].reset_telemetry()
                     self.chess_games[m_id] = ChessGame(seed=self.seed)
+        elif self.game_mode == "dino":
+            # Cyber-Dino setup
+            self.dino_games.clear()
+            for m_id in self.active_dino_models:
+                if m_id in self.dino_agents:
+                    self.dino_agents[m_id].reset_telemetry()
+                    self.dino_games[m_id] = DinoGame(seed=self.seed)
 
     async def connect_client(self, websocket: WebSocket):
         await websocket.accept()
@@ -169,10 +185,24 @@ class ArenaCoordinator:
                     "game_state": game.get_state(),
                     "telemetry": agent.get_summary_stats(),
                 })
-        else:
+        elif self.game_mode == "chess":
             for m_id in self.active_chess_models:
                 game = self.chess_games.get(m_id)
                 agent = self.chess_agents.get(m_id)
+                if not game or not agent:
+                    continue
+                models_data.append({
+                    "model_id": m_id,
+                    "name": agent.name,
+                    "model_type": agent.model_type,
+                    "color": agent.color,
+                    "game_state": game.get_state(),
+                    "telemetry": agent.get_summary_stats(),
+                })
+        elif self.game_mode == "dino":
+            for m_id in self.active_dino_models:
+                game = self.dino_games.get(m_id)
+                agent = self.dino_agents.get(m_id)
                 if not game or not agent:
                     continue
                 models_data.append({
@@ -187,7 +217,8 @@ class ArenaCoordinator:
         active_list = (
             self.active_snake_models if self.game_mode == "snake"
             else self.active_tetris_models if self.game_mode == "tetris"
-            else self.active_chess_models
+            else self.active_chess_models if self.game_mode == "chess"
+            else self.active_dino_models
         )
 
         return {
@@ -383,6 +414,62 @@ class ArenaCoordinator:
         self.log_history.append(event)
         return event
 
+    async def step_dino_model(self, m_id: str) -> Optional[Dict[str, Any]]:
+        game = self.dino_games.get(m_id)
+        agent = self.dino_agents.get(m_id)
+        if not game or not agent or not game.is_alive:
+            return None
+
+        state_repr = build_dino_state(game)
+        decision = await agent.decide_action(state_repr)
+        new_state = game.step(decision.action)
+
+        if not game.is_alive and agent.max_distance < game.distance:
+            agent.max_distance = game.distance
+        agent.obstacles_cleared = game.obstacles_cleared
+
+        imm = state_repr.get("immediate_obstacle")
+        commands = [
+            f"ACTION: {decision.action}",
+            f"SPEED: {new_state['speed']} px/f",
+            f"DIST: {int(new_state['distance'])}m",
+        ]
+        if imm:
+            commands.append(f"HAZARD: {imm['type'].upper()} ({int(state_repr['immediate_distance_px'])}px)")
+
+        event = {
+            "turn": self.turn,
+            "game_mode": "dino",
+            "model_id": m_id,
+            "name": agent.name,
+            "model_type": agent.model_type,
+            "color": agent.color,
+            "decision": {
+                "direction": decision.action,
+                "action": decision.action,
+                "confidence": decision.confidence,
+                "latency_ms": decision.latency_ms,
+                "is_safe": game.is_alive,
+                "reasoning": decision.reasoning,
+                "cost_usd": decision.cost_usd,
+                "threat_evaluated": decision.threat_evaluated,
+                "commands": commands,
+            },
+            "game_state": new_state,
+            "telemetry": agent.get_summary_stats(),
+            "state_repr": {
+                "speed": state_repr["speed"],
+                "distance": state_repr["distance"],
+                "criteria": state_repr["criteria"],
+                "ascii_grid": state_repr["ascii_grid"],
+                "immediate_obstacle": state_repr["immediate_obstacle"],
+                "immediate_distance_px": state_repr["immediate_distance_px"],
+                "optimal_action": state_repr["optimal_action"],
+            },
+        }
+        self.log_history.append(event)
+        return event
+
     async def execute_turn(self):
         if self.game_mode == "snake":
             alive = [m for m in self.active_snake_models if self.snake_games.get(m) and self.snake_games[m].is_alive]
@@ -428,7 +515,7 @@ class ArenaCoordinator:
             if not all_alive:
                 self.is_running = False
 
-        else:
+        elif self.game_mode == "chess":
             # Chess turn
             alive = [m for m in self.active_chess_models if self.chess_games.get(m) and self.chess_games[m].is_alive]
             if not alive:
@@ -443,6 +530,29 @@ class ArenaCoordinator:
             await self.broadcast({
                 "type": "TICK",
                 "game_mode": "chess",
+                "turn": self.turn,
+                "events": valid,
+                "is_running": self.is_running and all_alive,
+                "safety_status": GLOBAL_GEMINI_TRACKER.get_status_summary(),
+            })
+            if not all_alive:
+                self.is_running = False
+
+        elif self.game_mode == "dino":
+            # Cyber-Dino turn
+            alive = [m for m in self.active_dino_models if self.dino_games.get(m) and self.dino_games[m].is_alive]
+            if not alive:
+                self.is_running = False
+                await self.broadcast({"type": "GAME_OVER", "game_mode": "dino", "turn": self.turn})
+                return
+            self.turn += 1
+            tasks = [self.step_dino_model(m) for m in alive]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            valid = [r for r in results if isinstance(r, dict) and r is not None]
+            all_alive = any(self.dino_games[m].is_alive for m in self.active_dino_models if m in self.dino_games)
+            await self.broadcast({
+                "type": "TICK",
+                "game_mode": "dino",
                 "turn": self.turn,
                 "events": valid,
                 "is_running": self.is_running and all_alive,
@@ -524,6 +634,16 @@ async def get_models():
                 "active": a.model_id in coordinator.active_chess_models,
             }
             for a in coordinator.chess_agents.values()
+        ],
+        "dino_agents": [
+            {
+                "id": a.model_id,
+                "name": a.name,
+                "type": a.model_type,
+                "color": a.color,
+                "active": a.model_id in coordinator.active_dino_models,
+            }
+            for a in coordinator.dino_agents.values()
         ],
         "safety": GLOBAL_GEMINI_TRACKER.get_status_summary(),
         "ollama_discovered": ollama_discovered,

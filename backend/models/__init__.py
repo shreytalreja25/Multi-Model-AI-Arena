@@ -12,6 +12,8 @@ from backend.models.laya_agent import LayaSnakeAgent
 from backend.models.ollama_agent import OllamaSnakeAgent
 from backend.models.heuristic_agent import HeuristicSnakeAgent
 from backend.models.gemini_agent import GeminiSnakeAgent, GLOBAL_GEMINI_TRACKER
+from backend.models.dino_agents import create_default_dino_agents, BaseDinoAgent, DinoDecisionResult
+from backend.models.openai_decisions_agent import OpenAIDecisionsSnakeAgent
 
 
 async def discover_ollama_models(base_url: str = "http://localhost:11434") -> List[Dict[str, str]]:
@@ -50,6 +52,14 @@ def create_default_agents() -> Dict[str, BaseSnakeAgent]:
         color="#00f0ff",
     )
     agents[jev.model_id] = jev
+
+    # 1b. OpenAI Decisions API (GPT-6 Luna)
+    gpt6 = OpenAIDecisionsSnakeAgent(
+        name="GPT-6 Luna (Decisions API)",
+        model_id="gpt-6-luna",
+        color="#10a37f",
+    )
+    agents[gpt6.model_id] = gpt6
 
     # 2. Google Gemini Flash (Cloud LLM)
     gemini = GeminiSnakeAgent(

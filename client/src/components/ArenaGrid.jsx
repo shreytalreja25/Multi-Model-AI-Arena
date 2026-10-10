@@ -2,6 +2,7 @@ import React from 'react';
 import SnakeCanvas from './SnakeCanvas';
 import TetrisCanvas from './TetrisCanvas';
 import ChessCanvas from './ChessCanvas';
+import DinoCanvas from './DinoCanvas';
 import { Eye } from 'lucide-react';
 
 export default function ArenaGrid({
@@ -14,6 +15,7 @@ export default function ArenaGrid({
   const isSnake = gameMode === 'snake';
   const isTetris = gameMode === 'tetris';
   const isChess = gameMode === 'chess';
+  const isDino = gameMode === 'dino';
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -67,13 +69,17 @@ export default function ArenaGrid({
             ? (model.game_state?.score || 0)
             : isTetris
             ? (model.game_state?.lines_cleared || 0)
-            : (model.game_state?.material_diff > 0 ? `+${model.game_state?.material_diff}` : model.game_state?.material_diff || 0);
+            : isChess
+            ? (model.game_state?.material_diff > 0 ? `+${model.game_state?.material_diff}` : model.game_state?.material_diff || 0)
+            : (model.game_state?.distance !== undefined ? `${Math.floor(model.game_state.distance)}m` : 0);
 
           const secondaryVal = isSnake
             ? (model.game_state?.steps || 0)
             : isTetris
             ? (model.game_state?.pieces_placed || 0)
-            : (model.game_state?.total_moves || 0);
+            : isChess
+            ? (model.game_state?.total_moves || 0)
+            : (model.game_state?.speed ? `${model.game_state.speed.toFixed(1)} px` : '--');
 
           return (
             <div
@@ -170,13 +176,22 @@ export default function ArenaGrid({
                     isAlive={isAlive}
                     speedDelayMs={speedDelayMs}
                   />
-                ) : (
+                ) : isChess ? (
                   <ChessCanvas
                     gameState={model.game_state}
                     lastEvent={ev}
                     modelColor={badgeColor}
                     width={270}
                     height={270}
+                  />
+                ) : (
+                  <DinoCanvas
+                    gameState={model.game_state}
+                    lastEvent={ev}
+                    modelColor={badgeColor}
+                    isAlive={isAlive}
+                    width={300}
+                    height={190}
                   />
                 )}
 
@@ -214,22 +229,22 @@ export default function ArenaGrid({
               }}>
                 <div>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                    {isSnake ? 'SCORE' : isTetris ? 'LINES' : 'MATERIAL'}
+                    {isSnake ? 'SCORE' : isTetris ? 'LINES' : isChess ? 'MATERIAL' : 'DISTANCE'}
                   </div>
                   <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{primaryVal}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                    {isSnake ? 'STEPS' : isTetris ? 'PIECES' : 'MOVES'}
+                    {isSnake ? 'STEPS' : isTetris ? 'PIECES' : isChess ? 'MOVES' : 'SPEED'}
                   </div>
                   <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{secondaryVal}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                    {isChess ? 'RECORD' : 'CONFIDENCE'}
+                    {isChess ? 'RECORD' : isDino ? 'CLEARED' : 'CONFIDENCE'}
                   </div>
-                  <div style={{ fontWeight: 700, color: isChess ? badgeColor : 'var(--cyan-glow)' }}>
-                    {isChess ? (model.telemetry?.record || '0W/0D/0L') : conf}
+                  <div style={{ fontWeight: 700, color: isChess ? badgeColor : isDino ? '#10b981' : 'var(--cyan-glow)' }}>
+                    {isChess ? (model.telemetry?.record || '0W/0D/0L') : isDino ? (model.game_state?.obstacles_cleared || 0) : conf}
                   </div>
                 </div>
               </div>

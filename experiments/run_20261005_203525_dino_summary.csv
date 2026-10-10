@@ -1,0 +1,8 @@
+model_id,name,model_type,episodes,score_mean,score_std,score_median,score_max,metric_mean,survival_rate_pct,latency_p50_ms,latency_avg_ms,total_cost_usd,cost_per_1k_steps
+kinematic_solver,Kinematic Solver (Optimal),heuristic,3,50.0,0.0,50.0,50.0,0.0,100.0,0.0,0.0,0.0,0.0
+typesafe/jev-1.13,Jev 1.13 (System-1),system_one,3,50.0,0.0,50.0,50.0,0.0,100.0,0.0,0.0,0.0009,0.9
+gemini-flash-latest,Gemini Flash (Google),llm_cloud,3,50.0,0.0,50.0,50.0,0.0,100.0,0.0,0.0,0.0,0.0
+convaiinnovations/laya,Laya Encoder (421M),encoder,3,50.0,0.0,50.0,50.0,0.0,100.0,0.0,0.0,0.0,0.0
+lukey03/qwen3.5-9b-abliterated:latest,Qwen 3.5 9B (Ollama),llm,3,50.0,0.0,50.0,50.0,0.0,100.0,0.0,0.0,0.0,0.0
+llama3.1:latest,Llama 3.1 8B (Ollama),llm,3,50.0,0.0,50.0,50.0,0.0,100.0,0.0,0.0,0.0,0.0
+llama3.2:1b,Llama 3.2 1B (Ollama),llm,3,50.0,0.0,50.0,50.0,0.0,100.0,0.0,0.0,0.0,0.0

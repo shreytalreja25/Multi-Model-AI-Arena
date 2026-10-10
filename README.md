@@ -83,31 +83,35 @@ Open your browser at `http://localhost:8000`.
 
 | Model | Architecture | Type | Latency (P50) | Cost / 1M Tokens |
 |---|---|---|---|---|
-| **Jev 1.13** | System-One Primitive | Fast Decision API | **~75 ms** | $0.042 |
-| **Gemini Flash** | Multimodal Cloud LLM | Cloud API (Breaker Protected) | **~180 ms** | $0.075 / $0.30 |
-| **Laya 421M** | ModernBERT Encoder | Neural Representation | **~50 ms** | $0.00 (Local) |
+| **GPT-6 Luna** | OpenAI Decisions API | Typed Choice Primitive | **~1,020 ms** | $0.10 (0 output tokens) |
+| **Jev 1.13** | System-One Primitive | Fast Decision API | **~75–510 ms** | $0.042 |
+| **Gemini Flash** | Multimodal Cloud LLM | Cloud API (Breaker Protected) | **~198 ms** | $0.075 / $0.30 |
+| **Laya 421M** | ModernBERT Encoder | Neural Representation | **~50–60 ms** | $0.00 (Local) |
 | **Qwen 3.5 9B** | Dense Generative LLM | Ollama Local | **~2,400 ms** | $0.00 (Local) |
-| **Llama 3.1 8B** | Dense Generative LLM | Ollama Local | **~3,100 ms** | $0.00 (Local) |
-| **Llama 3.2 1B** | Edge Generative LLM | Ollama Local | **~850 ms** | $0.00 (Local) |
+| **Llama 3.1 8B** | Dense Generative LLM | Ollama Local | **~2,500 ms** | $0.00 (Local) |
+| **Llama 3.2 1B** | Edge Generative LLM | Ollama Local | **~850–930 ms** | $0.00 (Local) |
 | **Algorithmic Baseline** | A* / Dellacherie / Minimax | Pure Heuristic Search | **< 1 ms** | $0.00 |
 
 ---
 
 ## 📄 Academic Research Paper & Benchmark Findings
 
-A complete, formal research paper detailing the empirical methodology, theoretical framing, tokenomics analysis, and benchmark datasets is included in this repository:
+A complete, formal research paper detailing empirical methodology, theoretical framing, tokenomics analysis, and benchmark datasets is included:
 
-👉 **[Read the Full Research Paper (RESEARCH_PAPER.md)](RESEARCH_PAPER.md)**
+👉 **[Read the Full Markdown Research Paper (RESEARCH_PAPER.md)](RESEARCH_PAPER.md)**  
+👉 **[Download the Formal IEEE Camera-Ready PDF (Multi_Model_AI_Arena_IEEE_Paper.pdf)](Multi_Model_AI_Arena_IEEE_Paper.pdf)**
 
 ### Key Highlights
+- **OpenAI Decisions API (GPT-6 Luna):** Tied for #1 in Cyber-Snake (18 apples, 129 steps) and Cyber-Tetris (18 lines cleared) with zero illegal move reversals, utilizing zero-output-token typed choices.
 - **Pareto Optimal Frontier:** System-One primitives (TypeSafe Jev 1.13) match or exceed 8B/9B LLM performance with an **84–86ms P50 latency** (a **$28\times–30\times$ speedup** over Ollama local LLMs) at **$0.006 per 1,000 decisions**.
 - **Bidirectional Encoders (Laya 421M):** Ultra-fast at **~60ms**, but vulnerable to greedy trapping in non-reversible topological spaces (Cyber-Snake) without explicit lookahead.
+- **Async Execution Decoupling:** Decoupling models from lock-step turns to concurrent independent coroutines delivers an empirical **43.0x speedup** by avoiding blocking waits on local generative models.
 - **Safety Circuit Breaker:** Successfully intercepts HTTP 429 quota exhaustion and budget limits, preserving 100% arena uptime via seamless heuristic fallback.
 
 <p align="center">
   <img src="experiments/charts/fig1_pareto_frontier.png" width="85%" alt="Pareto Frontier: Latency vs Performance" />
   <br/>
-  <em>Figure: Latency–Accuracy Pareto Frontier across Cyber-Snake, Cyber-Tetris, and Cyber-Chess.</em>
+  <em>Figure 1: Latency–Accuracy Pareto Frontier across Cyber-Snake, Cyber-Tetris, and Cyber-Chess with OpenAI Decisions API.</em>
 </p>
 
 ---
